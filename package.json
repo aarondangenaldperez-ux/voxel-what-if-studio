@@ -7,7 +7,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node --test tests/scenarioEngine.test.js tests/environmentBuilders.test.js tests/videoExport.test.js tests/voxelPresenter.test.js",
+    "test": "node --test tests/scenarioEngine.test.js tests/environmentBuilders.test.js tests/videoExport.test.js tests/voxelPresenter.test.js tests/sceneTimeline.test.js",
     "test:browser": "node --test tests/browser-smoke.test.js"
   },
   "dependencies": {
