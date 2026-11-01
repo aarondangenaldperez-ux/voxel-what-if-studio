@@ -253,7 +253,7 @@ export async function recordCanvasVideo({
     if (abortController.signal.aborted) throw interruptionError;
 
     // Keep expensive source-renderer resizing out of the short codec probe window.
-    await prepareSourceCanvas();
+    await prepareSourceCanvas({ signal: abortController.signal });
     if (abortController.signal.aborted) throw interruptionError;
 
     const output = document.createElement("canvas");
