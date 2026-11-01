@@ -8,6 +8,41 @@ const WorldView = lazy(() => import('./WorldView.jsx'));
 import { buildScenarioPlan } from './engine/scenarioEngine.js';
 import { ENVIRONMENT_LABELS } from './engine/environmentCatalog.js';
 
+function waitForAnimationFrames(signal, frameCount = 2) {
+  return new Promise((resolve, reject) => {
+    let remaining = frameCount;
+    let frameId = 0;
+    const cleanup = () => {
+      if (frameId) cancelAnimationFrame(frameId);
+      signal.removeEventListener('abort', onAbort);
+    };
+    const onAbort = () => {
+      cleanup();
+      reject(signal.reason instanceof Error ? signal.reason : new Error('Video export was interrupted.'));
+    };
+    const onFrame = () => {
+      frameId = 0;
+      if (signal.aborted) {
+        onAbort();
+        return;
+      }
+      remaining -= 1;
+      if (remaining <= 0) {
+        cleanup();
+        resolve();
+        return;
+      }
+      frameId = requestAnimationFrame(onFrame);
+    };
+    signal.addEventListener('abort', onAbort, { once: true });
+    if (signal.aborted) {
+      onAbort();
+      return;
+    }
+    frameId = requestAnimationFrame(onFrame);
+  });
+}
+
 export default function App() {
   const [question, setQuestion] = useState('What if all rubber disappeared for 5 seconds?');
   const [scenario, setScenario] = useState(() => buildScenarioPlan('What if all rubber disappeared for 5 seconds?'));
@@ -141,10 +176,10 @@ export default function App() {
       let lastUiTime = -Infinity;
       const blob = await recordCanvasVideo({
         sourceCanvas: target.canvas,
-        prepareSourceCanvas: async () => {
+        prepareSourceCanvas: async ({ signal }) => {
           setExportMessage("Preparing 1080 × 1920 video render…");
           target.setOutputSize(1080, 1920);
-          await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          await waitForAnimationFrames(signal, 2);
         },
         durationSeconds: scenario.durationSeconds,
         beats,
