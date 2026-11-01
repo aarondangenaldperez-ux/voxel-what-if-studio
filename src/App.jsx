@@ -6,8 +6,6 @@ import {
 const WorldView = lazy(() => import('./WorldView.jsx'));
 import { buildScenarioPlan } from './engine/scenarioEngine.js';
 
-const BEAT_DURATIONS_MS = [8000, 10000, 14000, 16000, 8000];
-
 export default function App() {
   const [question, setQuestion] = useState('What if all rubber disappeared for 5 seconds?');
   const [scenario, setScenario] = useState(() => buildScenarioPlan('What if all rubber disappeared for 5 seconds?'));
@@ -17,8 +15,16 @@ export default function App() {
 
   const beats = scenario.beats;
   const active = beats[activeBeatIndex] || beats[0];
+  const beatDurationsMs = useMemo(
+    () => beats.map((beat) => beat.durationSeconds * 1000),
+    [beats]
+  );
+  const totalDurationMs = beatDurationsMs.reduce((sum, duration) => sum + duration, 0);
+  const elapsedAtBeatMs = beatDurationsMs.slice(0, activeBeatIndex + 1).reduce((sum, duration) => sum + duration, 0);
+  const progress = totalDurationMs > 0 ? (elapsedAtBeatMs / totalDurationMs) * 100 : 0;
+  const totalSeconds = Math.round(totalDurationMs / 1000);
+  const totalLabel = `${String(Math.floor(totalSeconds / 60)).padStart(2, '0')}:${String(totalSeconds % 60).padStart(2, '0')}`;
   const promptLength = useMemo(() => question.trim().length, [question]);
-  const progress = (BEAT_DURATIONS_MS.slice(0, activeBeatIndex + 1).reduce((sum, duration) => sum + duration, 0) / 56000) * 100;
 
   useEffect(() => {
     if (!playing) return undefined;
@@ -28,9 +34,9 @@ export default function App() {
         return;
       }
       setActiveBeatIndex((current) => Math.min(current + 1, beats.length - 1));
-    }, BEAT_DURATIONS_MS[activeBeatIndex] || 8000);
+    }, beatDurationsMs[activeBeatIndex] || 8000);
     return () => window.clearTimeout(timer);
-  }, [playing, activeBeatIndex, beats.length]);
+  }, [playing, activeBeatIndex, beats.length, beatDurationsMs]);
 
   const generateStory = () => {
     const nextScenario = buildScenarioPlan(question);
@@ -59,9 +65,10 @@ export default function App() {
       'Prompt: ' + scenario.prompt,
       'Scenario: ' + scenario.phenomenon,
       'Scenario mapping: ' + (scenario.supported ? 'supported deterministic rule' : 'unmapped exploratory preview'),
+      'Duration: ' + totalLabel,
       '',
       ...beats.map((beat) => [
-        beat.time + '  ' + beat.title,
+        beat.time + '  ' + beat.title + ' (' + beat.durationSeconds + 's)',
         'Caption: ' + beat.caption,
         'Director note: ' + beat.note,
         'Event: ' + beat.event + ' | Camera: ' + beat.camera
@@ -126,7 +133,7 @@ export default function App() {
                 onClick={() => { setActiveBeatIndex(index); setPlaying(false); }}
               >
                 <span className="beat-marker">{index < activeBeatIndex ? '✓' : String(index + 1).padStart(2, '0')}</span>
-                <span className="beat-copy"><b>{beat.title}</b><small>{beat.time}</small></span>
+                <span className="beat-copy"><b>{beat.title}</b><small>{beat.time} · {beat.durationSeconds}s</small></span>
                 {activeBeatIndex === index && <span className="beat-active" />}
               </button>
             ))}
@@ -157,7 +164,7 @@ export default function App() {
             <div className="scene-caption" aria-live="polite">
               <span>{scenario.label}</span>
               <strong>{active.caption}</strong>
-              {active.event === 'countdown' && <small>EVENT WINDOW · FINAL MOMENTS</small>}
+              {(active.event === 'rubber-loss' || active.event === 'gravity-loss') && <small>EVENT WINDOW · FIVE SECONDS</small>}
             </div>
             <div className="viewport-bottom"><span>CAMERA · {active.camera.toUpperCase()}</span><span>ENVIRONMENT · {scenario.environment.toUpperCase()}</span></div>
           </div>
@@ -168,7 +175,7 @@ export default function App() {
             </button>
             <div className="progress-wrap">
               <div className="progress-track"><span style={{ width: progress + '%' }} /></div>
-              <div className="progress-label"><span>{active.time}</span><span>00:56 · STORYBOARD</span></div>
+              <div className="progress-label"><span>{active.time}</span><span>{totalLabel} · STORYBOARD</span></div>
             </div>
             <button className="icon-button" title="Reset sequence" onClick={reset}><RotateCcw size={16} /></button>
           </div>
