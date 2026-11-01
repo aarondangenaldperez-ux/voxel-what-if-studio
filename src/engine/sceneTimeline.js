@@ -116,13 +116,13 @@ export function getCityActorPoseAtTime({ elapsedSeconds, scenarioId, beats, acto
   const motionTime = scenarioId === "rubber"
     ? getMotionTime(time, rubberWindow?.startSeconds, rubberRecoverySeconds)
     : time;
-  const swing = Math.sin(time * 4.2 + index * 1.4) * 0.34;
+  const swing = (Math.sin(time * 4.2 + index * 1.4) - Math.sin(index * 1.4)) * 0.34;
   const gravityFloat = 0.95 + (index * 0.18) + Math.sin(time * 2.1 + index) * 0.2;
 
   return {
     wheelScale: 1 - (0.999 * rubberIntensity),
     carPositionY: (-0.22 * rubberIntensity) + (gravityFloat * gravityIntensity),
-    carPositionZOffset: Math.sin(motionTime * 0.8 + index * 1.7) * 0.22,
+    carPositionZOffset: (Math.sin(motionTime * 0.8 + index * 1.7) - Math.sin(index * 1.7)) * 0.22,
     carRotationX: (index % 2 === 0 ? -0.055 : 0.055) * rubberIntensity,
     carRotationZ: Math.sin(time * 6 + index) * 0.045 * rubberIntensity,
     pedestrianArmRotationX: [
