@@ -55,12 +55,16 @@ for (const environment of ENVIRONMENTS) {
       oceanReturnStartSeconds: 27
     });
 
+    updateAt(0);
+    const initialPose = snapshotPose(scene);
     assert.doesNotThrow(() => updateAt(9.25));
     const firstPose = snapshotPose(scene);
     updateAt(2.5);
     updateAt(31.75);
     updateAt(9.25);
     assert.deepEqual(snapshotPose(scene), firstPose, `${environment} should produce the same transforms for the same timestamp`);
+    updateAt(0);
+    assert.deepEqual(snapshotPose(scene), initialPose, `${environment} should preserve its original pose at time zero`);
 
     disposeScene(scene);
   });
