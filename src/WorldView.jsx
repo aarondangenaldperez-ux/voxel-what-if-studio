@@ -28,13 +28,13 @@ const MOODS = {
   aftermath: { sky: 0x14242b, fog: 0x1b2c32 }
 };
 
-export default function WorldView({ scenario, beat, playing, captureRef }) {
+export default function WorldView({ scenario, beat, playing, cameraMode = 'auto', captureRef }) {
   const host = useRef(null);
-  const state = useRef({ scenario, beat, playing });
+  const state = useRef({ scenario, beat, playing, cameraMode });
 
   useEffect(() => {
-    state.current = { scenario, beat, playing };
-  }, [scenario, beat, playing]);
+    state.current = { scenario, beat, playing, cameraMode };
+  }, [scenario, beat, playing, cameraMode]);
 
   useEffect(() => {
     const element = host.current;
@@ -131,11 +131,17 @@ export default function WorldView({ scenario, beat, playing, captureRef }) {
       const currentBeat = current.beat || {};
       const event = currentBeat.event || 'normal';
       const isPlaying = current.playing;
-      const cameraShot = CAMERA_SHOTS[currentBeat.camera] || CAMERA_SHOTS.establish;
-      cameraPosition.set(cameraShot.position[0], cameraShot.position[1], cameraShot.position[2]);
-      cameraTarget.set(cameraShot.target[0], cameraShot.target[1], cameraShot.target[2]);
-      camera.position.lerp(cameraPosition, 0.035);
-      controls.target.lerp(cameraTarget, 0.035);
+      const manualCamera = current.cameraMode === 'orbit';
+      controls.enabled = manualCamera && !exportSize;
+      element.dataset.cameraMode = manualCamera ? 'orbit' : 'auto';
+      element.dataset.orbitControls = String(controls.enabled);
+      if (!manualCamera) {
+        const cameraShot = CAMERA_SHOTS[currentBeat.camera] || CAMERA_SHOTS.establish;
+        cameraPosition.set(cameraShot.position[0], cameraShot.position[1], cameraShot.position[2]);
+        cameraTarget.set(cameraShot.target[0], cameraShot.target[1], cameraShot.target[2]);
+        camera.position.lerp(cameraPosition, 0.035);
+        controls.target.lerp(cameraTarget, 0.035);
+      }
 
       const palette = ENVIRONMENT_MOODS[currentScenario?.environment] || MOODS;
       const mood = palette[currentBeat.mood] || palette.calm || MOODS.calm;

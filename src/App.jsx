@@ -13,6 +13,7 @@ export default function App() {
   const [scenario, setScenario] = useState(() => buildScenarioPlan('What if all rubber disappeared for 5 seconds?'));
   const [activeBeatIndex, setActiveBeatIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [cameraMode, setCameraMode] = useState('auto');
   const [showNotes, setShowNotes] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
@@ -227,7 +228,7 @@ export default function App() {
 
           <div className="viewport">
             <Suspense fallback={<div className="viewport-loading">LOADING 3D SCENE ENGINE…</div>}>
-              <WorldView scenario={scenario} beat={active} playing={playing} captureRef={captureRef} />
+              <WorldView scenario={scenario} beat={active} playing={playing} cameraMode={cameraMode} captureRef={captureRef} />
             </Suspense>
             <div className="viewport-top">
               <span className="live-pill"><span /> 3D SCENE</span>
@@ -237,6 +238,11 @@ export default function App() {
               <span>{scenario.label}</span>
               <strong>{active.caption}</strong>
               {(active.event === 'rubber-loss' || active.event === 'gravity-loss') && <small>EVENT WINDOW · FIVE SECONDS</small>}
+            </div>
+            <div className="camera-mode-controls" role="group" aria-label="Camera mode">
+              <button type="button" className="camera-mode-button" data-mode="auto" aria-pressed={cameraMode === 'auto'} onClick={() => setCameraMode('auto')}>AUTO SHOTS</button>
+              <button type="button" className="camera-mode-button" data-mode="orbit" aria-pressed={cameraMode === 'orbit'} onClick={() => setCameraMode('orbit')}>FREE ORBIT</button>
+              {cameraMode === 'orbit' && <span className="camera-mode-hint">DRAG · PAN · ZOOM</span>}
             </div>
             <div className="viewport-bottom"><span>CAMERA · {active.camera.toUpperCase()}</span><span>ENVIRONMENT · {scenario.environment.toUpperCase()}</span></div>
           </div>

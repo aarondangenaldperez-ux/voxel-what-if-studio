@@ -50,6 +50,20 @@ test("production app renders WebGL, switches environments, and exports a storybo
     assert.ok(initialCanvas.width > 0 && initialCanvas.height > 0, "canvas should have a real render size");
     assert.equal(initialCanvas.hasWebGL, true, "a WebGL context should be created");
 
+    const cameraViewport = page.locator('.world-view');
+    assert.equal(await cameraViewport.getAttribute('data-camera-mode'), 'auto');
+    assert.equal(await cameraViewport.getAttribute('data-orbit-controls'), 'false');
+    await page.locator('.camera-mode-button[data-mode="orbit"]').click();
+    await page.waitForFunction(() => {
+      const view = document.querySelector('.world-view');
+      return view?.dataset.cameraMode === 'orbit' && view?.dataset.orbitControls === 'true';
+    });
+    await page.locator('.camera-mode-button[data-mode="auto"]').click();
+    await page.waitForFunction(() => {
+      const view = document.querySelector('.world-view');
+      return view?.dataset.cameraMode === 'auto' && view?.dataset.orbitControls === 'false';
+    });
+
     const scenarios = [
       ["airport", "What if an aircraft vanished at an airport?"],
       ["school", "What if a school vanished?"],
