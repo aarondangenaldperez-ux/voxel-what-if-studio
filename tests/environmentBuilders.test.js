@@ -5,8 +5,31 @@ import { buildEnvironment } from '../src/engine/environmentBuilders.js';
 
 const ENVIRONMENTS = ['airport', 'school', 'ocean', 'space', 'factory', 'nature'];
 
+function snapshotPose(scene) {
+  const pose = [];
+  scene.traverse((object) => {
+    if (!object.isObject3D) return;
+    pose.push({
+      id: object.uuid,
+      position: object.position.toArray(),
+      rotation: object.rotation.toArray(),
+      scale: object.scale.toArray(),
+      visible: object.visible
+    });
+  });
+  return pose;
+}
+
+function disposeScene(scene) {
+  scene.traverse((object) => {
+    object.geometry?.dispose?.();
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    materials.filter(Boolean).forEach((item) => item.dispose?.());
+  });
+}
+
 for (const environment of ENVIRONMENTS) {
-  test(`${environment} builder creates a populated 3D scene and updates its animation`, () => {
+  test(`${environment} builder creates a populated 3D scene and reconstructs the same timestamp`, () => {
     const scene = new THREE.Scene();
     const built = buildEnvironment(scene, environment);
     let meshes = 0;
@@ -21,81 +44,85 @@ for (const environment of ENVIRONMENTS) {
     assert.ok(Array.isArray(built.signalLights));
     assert.equal(typeof built.update, 'function');
 
-    assert.doesNotThrow(() => built.update({
-      elapsed: 4.5,
-      playing: true,
+    const updateAt = (elapsed) => built.update({
+      elapsed,
       event: 'normal',
       scenario: { id: 'environment-test' },
-      beat: { event: 'normal' }
-    }));
-
-    scene.traverse((object) => {
-      object.geometry?.dispose?.();
-      const materials = Array.isArray(object.material) ? object.material : [object.material];
-      materials.filter(Boolean).forEach((item) => item.dispose?.());
+      beat: { event: 'normal' },
+      productionStopStartSeconds: 8,
+      productionResumeStartSeconds: 27,
+      oceanLossStartSeconds: 8,
+      oceanReturnStartSeconds: 27
     });
+
+    assert.doesNotThrow(() => updateAt(9.25));
+    const firstPose = snapshotPose(scene);
+    updateAt(2.5);
+    updateAt(31.75);
+    updateAt(9.25);
+    assert.deepEqual(snapshotPose(scene), firstPose, `${environment} should produce the same transforms for the same timestamp`);
+
+    disposeScene(scene);
   });
 }
 
-test('factory production-stop event freezes conveyor crates and rollers, then resumes motion', () => {
+test('factory conveyor freezes and resumes using timeline time, independent of prior render history', () => {
   const scene = new THREE.Scene();
   const built = buildEnvironment(scene, 'factory');
+  const updateAt = (elapsed) => built.update({
+    elapsed,
+    productionStopStartSeconds: 8,
+    productionResumeStartSeconds: 27
+  });
   assert.equal(built.conveyorCrates.length, 5);
   assert.ok(built.conveyorRollers.length >= 8);
   assert.ok(built.robotArm);
 
-  built.update({ elapsed: 4, playing: true, event: 'normal' });
-  const positionsBeforeStop = built.conveyorCrates.map((crate) => crate.position.z);
-  const rotationsBeforeStop = built.conveyorRollers.map((roller) => roller.rotation.z);
-
-  built.update({ elapsed: 5, playing: true, event: 'production-stop' });
+  updateAt(8);
   const stoppedPositions = built.conveyorCrates.map((crate) => crate.position.z);
   const stoppedRotations = built.conveyorRollers.map((roller) => roller.rotation.z);
-  assert.deepEqual(stoppedPositions, positionsBeforeStop);
-
-  built.update({ elapsed: 12, playing: true, event: 'production-hold' });
+  updateAt(12);
+  assert.deepEqual(built.conveyorCrates.map((crate) => crate.position.z), stoppedPositions);
+  assert.deepEqual(built.conveyorRollers.map((roller) => roller.rotation.z), stoppedRotations);
+  updateAt(27);
   assert.deepEqual(built.conveyorCrates.map((crate) => crate.position.z), stoppedPositions);
   assert.deepEqual(built.conveyorRollers.map((roller) => roller.rotation.z), stoppedRotations);
 
-  built.update({ elapsed: 16, playing: true, event: 'production-resume' });
-  assert.notDeepEqual(
-    built.conveyorCrates.map((crate) => crate.position.z),
-    stoppedPositions
-  );
+  updateAt(31);
+  const resumedPositions = built.conveyorCrates.map((crate) => crate.position.z);
+  updateAt(4);
+  updateAt(31);
+  assert.deepEqual(built.conveyorCrates.map((crate) => crate.position.z), resumedPositions);
+  assert.notDeepEqual(resumedPositions, stoppedPositions);
 
-  scene.traverse((object) => {
-    object.geometry?.dispose?.();
-    const materials = Array.isArray(object.material) ? object.material : [object.material];
-    materials.filter(Boolean).forEach((item) => item.dispose?.());
-  });
+  disposeScene(scene);
 });
 
-test('ocean-loss removes the water surface and lowers marine life, then restores the scene', () => {
+test('ocean loss and return are eased from absolute time and restore the underwater scene', () => {
   const scene = new THREE.Scene();
   const built = buildEnvironment(scene, 'ocean');
+  const updateAt = (elapsed) => built.update({
+    elapsed,
+    oceanLossStartSeconds: 8,
+    oceanReturnStartSeconds: 27
+  });
   assert.equal(built.waterSurface.visible, true);
   assert.equal(built.fishList.length, 4);
 
-  const startingHeights = built.fishList.map((fish) => fish.position.y);
-  built.update({ elapsed: 8, playing: true, event: 'ocean-loss' });
+  updateAt(9.1);
   assert.equal(built.waterSurface.visible, false);
-  assert.ok(built.fishList.every((fish, index) => fish.position.y < startingHeights[index]));
-
-  for (let frame = 0; frame < 90; frame += 1) {
-    built.update({ elapsed: 8.5 + frame / 30, playing: true, event: 'ocean-hold' });
-  }
   assert.ok(built.fishList.every((fish) => fish.position.y < 1.5));
+  const vanishedPose = snapshotPose(scene);
 
-  built.update({ elapsed: 27, playing: true, event: 'ocean-return' });
+  updateAt(3);
+  updateAt(18);
+  updateAt(9.1);
+  assert.deepEqual(snapshotPose(scene), vanishedPose);
+
+  updateAt(28.4);
   assert.equal(built.waterSurface.visible, true);
-  for (let frame = 0; frame < 30; frame += 1) {
-    built.update({ elapsed: 27.5 + frame / 30, playing: true, event: 'restored' });
-  }
+  assert.ok(built.waterSurface.material.opacity > 0.2);
   assert.ok(built.fishList.every((fish) => fish.position.y > 1.5));
 
-  scene.traverse((object) => {
-    object.geometry?.dispose?.();
-    const materials = Array.isArray(object.material) ? object.material : [object.material];
-    materials.filter(Boolean).forEach((item) => item.dispose?.());
-  });
+  disposeScene(scene);
 });
