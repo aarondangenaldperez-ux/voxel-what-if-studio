@@ -110,34 +110,37 @@ export function buildVoxelPresenter(scene, { position = [0, 0, 9], scale = 1 } =
   }
 
   const baseY = root.position.y;
-  function update({ elapsed = 0, playing = false, beat = {} } = {}) {
-    const time = Number.isFinite(elapsed) ? elapsed : 0;
+  function update({ elapsed = 0, beat = {} } = {}) {
+    const time = Math.max(0, Number.isFinite(Number(elapsed)) ? Number(elapsed) : 0);
     const mood = beat?.mood || "calm";
-    const active = Boolean(playing);
+    // Every animated transform is assigned from absolute timeline time. A paused
+    // preview therefore holds the exact pose, and seeking reconstructs it directly.
+    const active = time > 0.001;
     const energy = mood === "chaos" ? 1.35 : mood === "shock" ? 1.15 : mood === "warning" ? 0.95 : 0.7;
-    const talk = active ? 0.5 + 0.5 * Math.sin(time * 9.2) : 0;
+    const talk = 0.5 + 0.5 * Math.sin(time * 9.2);
     const bob = active ? Math.sin(time * 2.5) * 0.065 : 0;
-    root.position.y = THREE.MathUtils.lerp(root.position.y, baseY + bob, 0.16);
-    head.rotation.y = THREE.MathUtils.lerp(head.rotation.y, active ? Math.sin(time * 1.2) * 0.11 : 0, 0.12);
-    head.rotation.z = THREE.MathUtils.lerp(head.rotation.z, active ? Math.sin(time * 2.1) * 0.035 : 0, 0.12);
-    mouth.scale.y = THREE.MathUtils.lerp(mouth.scale.y, active ? 0.35 + talk * 1.35 : mouth.userData.restScaleY, 0.28);
-    const blink = active && Math.sin(time * 0.73) > 0.985 ? 0.08 : 1;
-    eyes.forEach((eye) => { eye.scale.y = THREE.MathUtils.lerp(eye.scale.y, blink, 0.45); });
+    root.position.y = baseY + bob;
+    head.rotation.y = active ? Math.sin(time * 1.2) * 0.11 : 0;
+    head.rotation.z = active ? Math.sin(time * 2.1) * 0.035 : 0;
+    mouth.scale.y = active ? 0.35 + talk * 1.35 : mouth.userData.restScaleY;
+
+    const blinkPhase = (time * 0.73) % (Math.PI * 2);
+    const blink = active && Math.sin(blinkPhase) > 0.985 ? 0.08 : 1;
+    eyes.forEach((eye) => { eye.scale.y = blink; });
+
     const expression = mood === "shock" ? -0.2 : mood === "chaos" ? 0.14 : mood === "warning" ? -0.1 : 0;
     brows.forEach((brow, index) => {
-      const target = active ? expression * (index === 0 ? 1 : -1) : 0;
-      brow.rotation.z = THREE.MathUtils.lerp(brow.rotation.z, target, 0.16);
+      brow.rotation.z = active ? expression * (index === 0 ? 1 : -1) : 0;
     });
     arms.forEach((arm, index) => {
       const side = index === 0 ? -1 : 1;
       const gesture = active ? Math.sin(time * 2.9 + index * 1.1) * 0.16 * energy : 0;
-      arm.rotation.z = THREE.MathUtils.lerp(arm.rotation.z, side * (0.06 + gesture), 0.14);
-      arm.rotation.x = THREE.MathUtils.lerp(arm.rotation.x, active ? Math.sin(time * 2.2 + index) * 0.12 : 0, 0.14);
-      forearms[index].rotation.z = THREE.MathUtils.lerp(forearms[index].rotation.z, active ? -0.18 - gesture * 0.4 : -0.08, 0.14);
+      arm.rotation.z = side * (active ? 0.06 + gesture : 0);
+      arm.rotation.x = active ? Math.sin(time * 2.2 + index) * 0.12 : 0;
+      forearms[index].rotation.z = active ? -0.18 - gesture * 0.4 : -0.08;
     });
     legs.forEach((leg, index) => {
-      const step = active ? Math.sin(time * 2.9 + index * Math.PI) * 0.055 : 0;
-      leg.rotation.x = THREE.MathUtils.lerp(leg.rotation.x, step, 0.14);
+      leg.rotation.x = active ? Math.sin(time * 2.9 + index * Math.PI) * 0.055 : 0;
     });
   }
 
