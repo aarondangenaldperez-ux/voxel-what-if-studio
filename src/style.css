@@ -9,3 +9,18 @@
 @media(max-width:900px){.app-shell{padding:0 20px}.workspace{grid-template-columns:250px minmax(0,1fr);gap:22px}.sidebar h1{font-size:32px}.viewport{height:430px}.sidebar-bottom{flex-direction:column}}
 @media(max-width:650px){.app-shell{padding:0 14px}.topbar{height:60px}.top-status{font-size:0}.version{font-size:8px}.workspace{display:flex;flex-direction:column;padding-top:24px;gap:28px}.sidebar h1{font-size:34px;margin-top:14px}.intro{margin-bottom:20px}.timeline{display:grid;grid-template-columns:1fr 1fr;gap:5px}.beat{height:52px;padding:0 7px;gap:7px}.beat-copy b{font-size:10px}.beat-marker{width:22px;height:22px;font-size:9px}.sidebar-bottom{flex-direction:row;padding-top:15px}.stage-heading h2{font-size:19px}.viewport{height:390px;min-height:300px}.production-row{grid-template-columns:1fr;gap:12px}.production-row div{grid-template-columns:18px 1fr auto}.production-row b{grid-column:3;grid-row:1}.footer{font-size:7px}.footer span:nth-child(2){display:none}}
 @media(max-width:390px){.viewport{height:320px}.timeline{grid-template-columns:1fr}.beat{height:46px}.sidebar-bottom{flex-direction:column}.footer span:first-child{display:none}}
+
+
+/* Phase 1 scenario workflow */
+.generate-button{width:100%;margin-top:12px;padding:11px 12px;border:1px solid #7dc9b7;border-radius:6px;background:linear-gradient(110deg,#9bd8c7,#74bca9);color:#10231f;font:700 10px 'DM Sans';letter-spacing:.07em;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:filter .18s,transform .18s}
+.generate-button:hover{filter:brightness(1.06);transform:translateY(-1px)}
+.engine-status{display:flex;align-items:center;gap:7px;margin-top:10px;font:8px 'DM Mono';letter-spacing:.06em;color:#84939a}
+.engine-indicator{width:6px;height:6px;border-radius:50%;background:#d7a35c;flex:none}
+.engine-indicator.mapped{background:#74d2a7;box-shadow:0 0 8px #74d2a766}
+.viewport{width:min(100%,390px)!important;aspect-ratio:9/16;height:auto!important;min-height:0!important;max-height:min(74vh,700px);margin:0 auto}
+.scene-caption{position:absolute;left:18px;right:18px;bottom:52px;display:flex;align-items:center;flex-direction:column;gap:8px;text-align:center;pointer-events:none;text-shadow:0 2px 12px #000}
+.scene-caption span{display:inline-block;padding:5px 8px;border:1px solid #a0d9c955;border-radius:4px;background:#0b151dcc;color:#a8e4d4;font:8px 'DM Mono';letter-spacing:.08em}
+.scene-caption strong{max-width:310px;color:#fff;font:700 clamp(15px,4vw,20px)/1.2 'Space Grotesk';letter-spacing:-.2px}
+.scene-caption small{color:#ffe0a0;font:8px 'DM Mono';letter-spacing:.08em}
+.limitation-note{margin:12px 0 0;color:#8b999d;font-size:10px;line-height:1.5}
+@media(max-width:650px){.viewport{width:min(100%,390px)!important;max-height:none;aspect-ratio:9/16;height:auto!important;min-height:0!important}.scene-caption{bottom:50px}.scene-caption strong{font-size:18px}}
