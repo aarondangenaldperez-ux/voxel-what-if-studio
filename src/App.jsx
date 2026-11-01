@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import {
   Activity, Clapperboard, Download, Film, Layers3, Lightbulb, Play,
   RotateCcw, Sparkles, WandSparkles
 } from 'lucide-react';
-import WorldView from './WorldView.jsx';
+const WorldView = lazy(() => import('./WorldView.jsx'));
 import { buildScenarioPlan } from './engine/scenarioEngine.js';
 
 export default function App() {
@@ -145,7 +145,9 @@ export default function App() {
           </div>
 
           <div className="viewport">
-            <WorldView scenario={scenario} beat={active} playing={playing} />
+            <Suspense fallback={<div className="viewport-loading">LOADING 3D SCENE ENGINE…</div>}>
+              <WorldView scenario={scenario} beat={active} playing={playing} />
+            </Suspense>
             <div className="viewport-top">
               <span className="live-pill"><span /> 3D SCENE</span>
               <span className="viewport-label">PROCEDURAL CITY / REAL-TIME</span>
