@@ -68,3 +68,18 @@ test("runtime encoder probe rejects advertised formats that produce no video dat
     /none produced a valid recording/
   );
 });
+
+test("encoder selection stops immediately when the export is cancelled", async () => {
+  class Recorder {
+    static isTypeSupported() { return true; }
+  }
+  const controller = new AbortController();
+  const reason = new Error("The browser tab became hidden.");
+  await assert.rejects(
+    findWorkingRecordingFormat(Recorder, async () => {
+      controller.abort(reason);
+      return false;
+    }, { signal: controller.signal }),
+    /browser tab became hidden/
+  );
+});
