@@ -6,7 +6,7 @@ import { join, resolve } from "node:path";
 import { chromium } from "playwright";
 import { preview } from "vite";
 
-test("production app renders WebGL, switches environments, and exports a storyboard", async () => {
+test("production app renders WebGL, switches environments, and exports real files", { timeout: 240000 }, async () => {
   const server = await preview({
     configFile: resolve("vite.config.js"),
     preview: { host: "127.0.0.1", port: 4173, strictPort: true }
@@ -153,6 +153,29 @@ test("production app renders WebGL, switches environments, and exports a storybo
     assert.match(storyboard, /VOXEL WHAT IF STUDIO — STORYBOARD/);
     assert.match(storyboard, /What if all rubber disappeared for 5 seconds\?/);
     assert.match(storyboard, /Duration: 00:56/);
+
+    const videoDownloadPromise = page.waitForEvent("download", { timeout: 160000 });
+    await page.locator(".video-export-button").click();
+    const videoDownload = await videoDownloadPromise;
+    assert.match(
+      videoDownload.suggestedFilename(),
+      /^voxel-what-if-rubber\\.(mp4|webm)$/,
+      "the app should download a correctly named MP4 or WebM file"
+    );
+    await page.waitForFunction(
+      () => document.querySelector(".video-export-success")?.textContent.includes("VIDEO GENERATED"),
+      null,
+      { timeout: 10000 }
+    );
+    assert.equal(await page.locator(".video-export-error").count(), 0,
+      "the UI should not show an export error after a successful download");
+    assert.equal(await page.locator(".video-export-button").isDisabled(), false,
+      "the export control should be re-enabled after rendering");
+
+    const videoPath = join(downloadDirectory, videoDownload.suggestedFilename());
+    await videoDownload.saveAs(videoPath);
+    const videoBytes = await readFile(videoPath);
+    assert.ok(videoBytes.byteLength > 0, "the full app export should produce a non-empty downloadable video");
 
     assert.deepEqual(pageErrors, [], "browser should not report uncaught page errors");
   } finally {
