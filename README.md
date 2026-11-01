@@ -12,7 +12,8 @@ A browser-based, vertical-first 3D scenario preview and storyboard prototype bui
 - Camera shot changes between establishing, event, detail, aftermath, and resolution beats
 - 9:16 scene preview with prompt editing, scene selection, playback, and storyboard text export
 - Lazy-loaded 3D engine to reduce the initial application bundle
-- Scenario unit tests and bounded GitHub Pages deployment workflow
+- Scenario classification tests plus scene-construction/animation smoke tests for all six added environments
+- Bounded GitHub Pages deployment workflow that runs tests before publishing
 
 ## Run locally
 

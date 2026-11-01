@@ -158,3 +158,9 @@ The current release is a visual prototype. It does **not** yet generate complete
 - Added keyword-based environment routing with unit tests; unsupported physical effects remain explicitly unmapped.
 - Added environment-specific animated set pieces: taxiing aircraft, school bus and pedestrians, swimming fish and submersible, satellite/spacecraft, factory conveyor and robotic arm, and moving wildlife.
 - These are deterministic procedural environments, not AI-generated 3D assets, general scientific simulation, or MP4 production.
+
+
+### Phase 2 verification expansion
+
+- Added Node smoke tests that instantiate every added environment, count actual Three.js renderable objects, and execute each environment update callback.
+- These tests are not a substitute for device/browser visual QA, frame-rate profiling, or a completed recorded-video inspection.
