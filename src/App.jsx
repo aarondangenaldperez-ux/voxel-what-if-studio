@@ -1,36 +1,77 @@
-import { useMemo, useState } from 'react';
-import { Activity, Clapperboard, Download, Film, Layers3, Lightbulb, Play, RotateCcw, Sparkles, WandSparkles } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  Activity, Clapperboard, Download, Film, Layers3, Lightbulb, Play,
+  RotateCcw, Sparkles, WandSparkles
+} from 'lucide-react';
 import WorldView from './WorldView.jsx';
-
-const beats = [
-  { time: '00:00', title: 'The ordinary world', note: 'Everything is normal. Establish scale, routine, and a world the viewer recognizes.', mood: 'calm' },
-  { time: '00:08', title: 'The disappearance', note: 'The impossible event happens. Let the visual change land before explaining it.', mood: 'shock' },
-  { time: '00:18', title: 'First consequences', note: 'Show immediate systems failing and people noticing the change.', mood: 'warning' },
-  { time: '00:32', title: 'The chain reaction', note: 'Connect local effects to larger systems. Escalate the scale of the story.', mood: 'chaos' },
-  { time: '00:48', title: 'A changed world', note: 'Reveal the long-term result and end with one memorable thought.', mood: 'aftermath' }
-];
+import { buildScenarioPlan } from './engine/scenarioEngine.js';
 
 export default function App() {
-  const [question, setQuestion] = useState('What if the oceans suddenly vanished?');
-  const [activeBeat, setActiveBeat] = useState(0);
+  const [question, setQuestion] = useState('What if all rubber disappeared for 5 seconds?');
+  const [scenario, setScenario] = useState(() => buildScenarioPlan('What if all rubber disappeared for 5 seconds?'));
+  const [activeBeatIndex, setActiveBeatIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [showNotes, setShowNotes] = useState(true);
-  const active = beats[activeBeat];
-  const promptLength = useMemo(() => question.trim().length, [question]);
 
-  const reset = () => { setActiveBeat(0); setPlaying(false); };
+  const beats = scenario.beats;
+  const active = beats[activeBeatIndex] || beats[0];
+  const promptLength = useMemo(() => question.trim().length, [question]);
+  const progress = ((activeBeatIndex + 1) / beats.length) * 100;
+
+  useEffect(() => {
+    if (!playing) return undefined;
+    if (activeBeatIndex >= beats.length - 1) {
+      setPlaying(false);
+      return undefined;
+    }
+    const timer = window.setTimeout(() => {
+      setActiveBeatIndex((current) => Math.min(current + 1, beats.length - 1));
+    }, 4200);
+    return () => window.clearTimeout(timer);
+  }, [playing, activeBeatIndex, beats.length]);
+
+  const generateStory = () => {
+    const nextScenario = buildScenarioPlan(question);
+    setScenario(nextScenario);
+    setActiveBeatIndex(0);
+    setPlaying(false);
+  };
+
+  const reset = () => {
+    setActiveBeatIndex(0);
+    setPlaying(false);
+  };
+
+  const togglePlayback = () => {
+    if (playing) {
+      setPlaying(false);
+      return;
+    }
+    if (activeBeatIndex >= beats.length - 1) setActiveBeatIndex(0);
+    setPlaying(true);
+  };
+
   const exportBrief = () => {
-    const brief = [
+    const lines = [
       'VOXEL WHAT IF STUDIO — STORYBOARD',
-      question,
+      'Prompt: ' + scenario.prompt,
+      'Scenario: ' + scenario.phenomenon,
+      'Scenario mapping: ' + (scenario.supported ? 'supported deterministic rule' : 'unmapped exploratory preview'),
       '',
-      ...beats.map((b, i) => `${b.time}  ${b.title}\n${b.note}`)
-    ].join('\n');
-    const blob = new Blob([brief], { type: 'text/plain' });
+      ...beats.map((beat) => [
+        beat.time + '  ' + beat.title,
+        'Caption: ' + beat.caption,
+        'Director note: ' + beat.note,
+        'Event: ' + beat.event + ' | Camera: ' + beat.camera
+      ].join('\n'))
+    ];
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'voxel-what-if-storyboard.txt'; a.click();
-    URL.revokeObjectURL(url);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'voxel-what-if-storyboard.txt';
+    anchor.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   return (
@@ -40,27 +81,51 @@ export default function App() {
           <span className="brand-mark"><Layers3 size={19} /></span>
           <span>VOXEL <b>WHAT IF</b> <i>STUDIO</i></span>
         </a>
-        <div className="top-status"><span className="status-dot" /> CREATIVE WORKSPACE <span className="version">PROTOTYPE 0.1</span></div>
+        <div className="top-status">
+          <span className="status-dot" />
+          SCENARIO PREVIEW
+          <span className="version">ENGINE PHASE 1</span>
+        </div>
       </header>
 
       <section className="workspace">
         <aside className="sidebar">
           <div className="section-kicker"><Sparkles size={14} /> STORY ENGINE</div>
           <h1>Imagine the<br /><em>impossible.</em></h1>
-          <p className="intro">Turn a single question into a cinematic voxel-world sequence.</p>
+          <p className="intro">Turn a What If question into a structured, scenario-aware 3D preview.</p>
 
           <label className="field-label" htmlFor="whatif">YOUR WHAT IF QUESTION</label>
-          <textarea id="whatif" value={question} onChange={e => setQuestion(e.target.value)} maxLength={150} placeholder="What if..." />
-          <div className="field-foot"><span>{promptLength}/150 characters</span><span className="ready"><span /> READY TO SHAPE</span></div>
+          <textarea
+            id="whatif"
+            value={question}
+            onChange={(event) => setQuestion(event.target.value)}
+            maxLength={150}
+            placeholder="What if..."
+          />
+          <div className="field-foot">
+            <span>{promptLength}/150 characters</span>
+            <span className="ready"><span /> READY TO PLAN</span>
+          </div>
+          <button className="generate-button" onClick={generateStory}>
+            <WandSparkles size={15} /> GENERATE STORYBOARD
+          </button>
+          <div className="engine-status">
+            <span className={scenario.supported ? 'engine-indicator mapped' : 'engine-indicator'} />
+            <span>{scenario.supported ? 'MAPPED EVENT · ' + scenario.label : 'UNMAPPED · GENERAL CITY PREVIEW'}</span>
+          </div>
 
           <div className="divider" />
           <div className="section-kicker"><Film size={14} /> STORY TIMELINE</div>
           <div className="timeline">
-            {beats.map((beat, i) => (
-              <button key={beat.title} className={`beat ${activeBeat === i ? 'selected' : ''} ${i < activeBeat ? 'passed' : ''}`} onClick={() => { setActiveBeat(i); setPlaying(false); }}>
-                <span className="beat-marker">{i < activeBeat ? '✓' : String(i + 1).padStart(2, '0')}</span>
+            {beats.map((beat, index) => (
+              <button
+                key={beat.title}
+                className={'beat ' + (activeBeatIndex === index ? 'selected ' : '') + (index < activeBeatIndex ? 'passed' : '')}
+                onClick={() => { setActiveBeatIndex(index); setPlaying(false); }}
+              >
+                <span className="beat-marker">{index < activeBeatIndex ? '✓' : String(index + 1).padStart(2, '0')}</span>
                 <span className="beat-copy"><b>{beat.title}</b><small>{beat.time}</small></span>
-                {activeBeat === i && <span className="beat-active" />}
+                {activeBeatIndex === index && <span className="beat-active" />}
               </button>
             ))}
           </div>
@@ -72,36 +137,59 @@ export default function App() {
 
         <section className="stage-column">
           <div className="stage-heading">
-            <div><div className="section-kicker"><Clapperboard size={14} /> SCENE PREVIEW</div><h2>{active.title}</h2></div>
-            <div className="scene-counter">SCENE <b>{String(activeBeat + 1).padStart(2, '0')}</b><span>/ 05</span></div>
-          </div>
-          <div className="viewport">
-            <WorldView mood={active.mood} playing={playing} />
-            <div className="viewport-top"><span className="live-pill"><span /> LIVE PREVIEW</span><span className="viewport-label">VOXEL ENVIRONMENT / 3D</span></div>
-            <div className="viewport-bottom"><span>CAM 01 · ORBIT</span><span>ENVIRONMENT: PROCEDURAL</span></div>
-            <div className="viewport-center">
-              <span className="crosshair" />
+            <div>
+              <div className="section-kicker"><Clapperboard size={14} /> SCENE PREVIEW</div>
+              <h2>{active.title}</h2>
             </div>
+            <div className="scene-counter">SCENE <b>{String(activeBeatIndex + 1).padStart(2, '0')}</b><span>/ {String(beats.length).padStart(2, '0')}</span></div>
           </div>
+
+          <div className="viewport">
+            <WorldView scenario={scenario} beat={active} playing={playing} />
+            <div className="viewport-top">
+              <span className="live-pill"><span /> 3D SCENE</span>
+              <span className="viewport-label">PROCEDURAL CITY / REAL-TIME</span>
+            </div>
+            <div className="scene-caption" aria-live="polite">
+              <span>{scenario.label}</span>
+              <strong>{active.caption}</strong>
+              {active.event === 'countdown' && <small>EVENT WINDOW · FINAL MOMENTS</small>}
+            </div>
+            <div className="viewport-bottom"><span>CAMERA · {active.camera.toUpperCase()}</span><span>ENVIRONMENT · {scenario.environment.toUpperCase()}</span></div>
+          </div>
+
           <div className="transport">
-            <button className="play-button" onClick={() => setPlaying(!playing)}><Play size={15} fill="currentColor" /> {playing ? 'PAUSE PREVIEW' : 'PLAY PREVIEW'}</button>
-            <div className="progress-wrap"><div className="progress-track"><span style={{ width: `${(activeBeat + 1) * 20}%` }} /></div><div className="progress-label"><span>{active.time}</span><span>00:56</span></div></div>
-            <button className="icon-button" title="Reset" onClick={reset}><RotateCcw size={16} /></button>
+            <button className="play-button" onClick={togglePlayback}>
+              <Play size={15} fill="currentColor" /> {playing ? 'PAUSE PREVIEW' : 'PLAY STORY PREVIEW'}
+            </button>
+            <div className="progress-wrap">
+              <div className="progress-track"><span style={{ width: progress + '%' }} /></div>
+              <div className="progress-label"><span>{active.time}</span><span>00:56 · STORYBOARD</span></div>
+            </div>
+            <button className="icon-button" title="Reset sequence" onClick={reset}><RotateCcw size={16} /></button>
           </div>
 
           <div className="insight-card">
             <div className="insight-icon"><Lightbulb size={17} /></div>
-            <div className="insight-copy"><span>DIRECTOR'S NOTE</span><p>{active.note}</p></div>
+            <div className="insight-copy">
+              <span>DIRECTOR'S NOTE</span>
+              <p>{active.note}</p>
+            </div>
             <button className="notes-toggle" onClick={() => setShowNotes(!showNotes)}>{showNotes ? 'HIDE' : 'SHOW'}</button>
           </div>
           {showNotes && <div className="production-row">
-            <div><Activity size={15} /><span>VISUAL INTENSITY</span><b>{['LOW','RISING','MEDIUM','HIGH','EPIC'][activeBeat]}</b></div>
-            <div><WandSparkles size={15} /><span>SCENE MOOD</span><b>{active.mood.toUpperCase()}</b></div>
-            <div><Layers3 size={15} /><span>RENDER STYLE</span><b>VOXEL CINEMATIC</b></div>
+            <div><Activity size={15} /><span>VISUAL INTENSITY</span><b>{['LOW', 'RISING', 'MEDIUM', 'HIGH', 'EPIC'][activeBeatIndex]}</b></div>
+            <div><WandSparkles size={15} /><span>SCENARIO RULE</span><b>{scenario.supported ? scenario.id.toUpperCase() : 'UNMAPPED'}</b></div>
+            <div><Layers3 size={15} /><span>RENDER STYLE</span><b>VOXEL CITY</b></div>
           </div>}
+          {!scenario.supported && <p className="limitation-note">This topic has no dedicated visual rule yet. The preview intentionally avoids inventing scenario-specific effects.</p>}
         </section>
       </section>
-      <footer className="footer"><span>VOXEL WHAT IF STUDIO</span><span>BUILT FOR STORIES THAT BEND REALITY.</span><span>0.1.0 · WEB PROTOTYPE</span></footer>
+      <footer className="footer">
+        <span>VOXEL WHAT IF STUDIO</span>
+        <span>REAL-TIME 3D SCENARIO PREVIEW</span>
+        <span>ENGINE PHASE 1 · VERTICAL PREVIEW</span>
+      </footer>
     </main>
   );
 }
