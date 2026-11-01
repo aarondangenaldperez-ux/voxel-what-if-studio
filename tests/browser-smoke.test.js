@@ -98,11 +98,11 @@ test("production app renders WebGL, switches environments, and exports a storybo
       draw();
 
       const candidates = [
-        "video/mp4;codecs=avc1.42E01E",
-        "video/mp4",
-        "video/webm;codecs=vp9",
         "video/webm;codecs=vp8",
-        "video/webm"
+        "video/webm;codecs=vp9",
+        "video/webm",
+        "video/mp4;codecs=avc1.42E01E",
+        "video/mp4"
       ];
       const mimeType = candidates.find((type) => MediaRecorder.isTypeSupported(type));
       if (!mimeType) {
