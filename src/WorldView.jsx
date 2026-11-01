@@ -2,13 +2,14 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { buildEnvironment } from './engine/environmentBuilders.js';
+import { buildVoxelPresenter } from './engine/voxelPresenter.js';
 
 const CAMERA_SHOTS = {
   establish: { position: [22, 19, 25], target: [0, 1, 0] },
-  event: { position: [11, 10, 15], target: [0, 1.3, 0] },
-  detail: { position: [7.5, 6.5, 9], target: [0, 1.4, 1.5] },
-  aftermath: { position: [-18, 14, 16], target: [0, 1.2, 0] },
-  resolve: { position: [15, 12, 19], target: [0, 1, 0] }
+  event: { position: [4, 6, 19], target: [0, 2.55, 8.5] },
+  detail: { position: [0, 4.3, 15.5], target: [0, 3.05, 8.7] },
+  aftermath: { position: [-9, 8, 19], target: [0, 2.45, 7.5] },
+  resolve: { position: [10, 7, 22], target: [0, 2.5, 7.5] }
 };
 
 const ENVIRONMENT_MOODS = {
@@ -28,13 +29,13 @@ const MOODS = {
   aftermath: { sky: 0x14242b, fog: 0x1b2c32 }
 };
 
-export default function WorldView({ scenario, beat, playing, cameraMode = 'auto', lighting = 100, captureRef }) {
+export default function WorldView({ scenario, beat, playing, cameraMode = 'auto', lighting = 100, presenterVisible = true, captureRef }) {
   const host = useRef(null);
-  const state = useRef({ scenario, beat, playing, cameraMode, lighting });
+  const state = useRef({ scenario, beat, playing, cameraMode, lighting, presenterVisible });
 
   useEffect(() => {
-    state.current = { scenario, beat, playing, cameraMode, lighting };
-  }, [scenario, beat, playing, cameraMode, lighting]);
+    state.current = { scenario, beat, playing, cameraMode, lighting, presenterVisible };
+  }, [scenario, beat, playing, cameraMode, lighting, presenterVisible]);
 
   useEffect(() => {
     const element = host.current;
@@ -86,6 +87,7 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
     scene.add(fillLight);
 
     const city = buildEnvironment(scene, scenario?.environment || 'urban');
+    const presenter = buildVoxelPresenter(scene, { position: [0, 0, 9], scale: 1.05 });
     const clock = new THREE.Clock();
     const cameraPosition = new THREE.Vector3();
     const cameraTarget = new THREE.Vector3();
@@ -165,6 +167,10 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
         ['power-loss', 'blackout', 'countdown'].includes(event);
 
       city.update?.({ elapsed, playing: isPlaying, event, scenario: currentScenario, beat: currentBeat });
+      presenter.root.visible = current.presenterVisible !== false;
+      if (presenter.root.visible) presenter.update({ elapsed, playing: isPlaying, beat: currentBeat });
+      element.dataset.presenterVisible = String(presenter.root.visible);
+      element.dataset.presenterSpeaking = String(isPlaying);
 
       city.cars.forEach((car, index) => {
         const base = car.root.userData.basePosition;

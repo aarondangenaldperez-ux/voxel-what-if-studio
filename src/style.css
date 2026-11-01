@@ -38,3 +38,8 @@
 .video-export-success{margin-top:9px;color:#9edcc8;font:8px/1.5 'DM Mono';text-align:center}
 .video-export-error{margin-top:9px;color:#f0a49c;font:9px/1.5 'DM Sans';text-align:center}
 .video-export-panel+.insight-card{padding-top:15px}
+
+/* Reference-led voxel host controls */
+.camera-mode-controls{max-width:calc(100% - 20px);flex-wrap:wrap}
+.camera-mode-button[data-mode="presenter"]{border-color:#49665e;color:#a9d6c8}
+@media(max-width:420px){.camera-mode-controls{top:48px;right:8px;gap:2px}.camera-mode-button{padding:6px 7px;font-size:7px}.camera-mode-hint{display:none}}

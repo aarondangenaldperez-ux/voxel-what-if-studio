@@ -49,6 +49,12 @@ test("production app renders WebGL, switches environments, and exports a storybo
     });
     assert.ok(initialCanvas.width > 0 && initialCanvas.height > 0, "canvas should have a real render size");
     assert.equal(initialCanvas.hasWebGL, true, "a WebGL context should be created");
+    const hostToggle = page.locator('.camera-mode-button[data-mode="presenter"]');
+    await page.waitForFunction(() => document.querySelector('.world-view')?.dataset.presenterVisible === 'true');
+    await hostToggle.click();
+    await page.waitForFunction(() => document.querySelector('.world-view')?.dataset.presenterVisible === 'false');
+    await hostToggle.click();
+    await page.waitForFunction(() => document.querySelector('.world-view')?.dataset.presenterVisible === 'true');
 
     const cameraViewport = page.locator('.world-view');
     assert.equal(await cameraViewport.getAttribute('data-camera-mode'), 'auto');
