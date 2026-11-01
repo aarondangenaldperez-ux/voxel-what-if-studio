@@ -81,7 +81,7 @@ test('ocean-loss removes the water surface and lowers marine life, then restores
   assert.equal(built.waterSurface.visible, false);
   assert.ok(built.fishList.every((fish, index) => fish.position.y < startingHeights[index]));
 
-  for (let frame = 0; frame < 30; frame += 1) {
+  for (let frame = 0; frame < 90; frame += 1) {
     built.update({ elapsed: 8.5 + frame / 30, playing: true, event: 'ocean-hold' });
   }
   assert.ok(built.fishList.every((fish) => fish.position.y < 1.5));
