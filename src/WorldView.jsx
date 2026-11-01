@@ -83,7 +83,7 @@ export default function WorldView({ scenario, beat, playing }) {
     fillLight.position.set(15, 12, -14);
     scene.add(fillLight);
 
-    const city = buildEnvironment(scene, state.current.scenario?.environment || 'urban');
+    const city = buildEnvironment(scene, scenario?.environment || 'urban');
     const clock = new THREE.Clock();
     const cameraPosition = new THREE.Vector3();
     const cameraTarget = new THREE.Vector3();
@@ -200,7 +200,7 @@ export default function WorldView({ scenario, beat, playing }) {
         element.removeChild(renderer.domElement);
       }
     };
-  }, []);
+  }, [scenario?.environment]);
 
-  return <div className="world-view" ref={host} aria-label="Interactive animated 3D voxel city preview" />;
+  return <div className="world-view" ref={host} data-environment={scenario?.environment || 'urban'} aria-label="Interactive animated 3D scenario preview" />;
 }
