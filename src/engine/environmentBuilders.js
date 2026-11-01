@@ -165,14 +165,40 @@ function factory(scene) {
   for(let x=-14;x<=14;x+=4)box(scene,[2.4,2.2,.16],[x,8.6,10.55],glass);
   for(const x of [-13,-5,5,13]){box(scene,[.5,11,.5],[x,5.5,7],mat(0x929891));box(scene,[.9,.25,18],[x,10.6,0],mat(0xb7b8ac));}
   const belt=group(scene,[-1,.3,2]);box(belt,[7,.48,17],[0,.8,0],mat(0x262e32));
-  for(let x=-3.2;x<=3.2;x+=.65)cyl(belt,.16,.16,16.5,[x,.8,0],mat(0x9c9f96),8,[Math.PI/2,0,0]);
+  const rollers=[];
+  for(let x=-3.2;x<=3.2;x+=.65) {
+    const roller=cyl(belt,.16,.16,16.5,[x,.8,0],mat(0x9c9f96),8,[Math.PI/2,0,0]);
+    rollers.push(roller);
+  }
   const crates=[];const colors=[0xb96e48,0xc59e59,0x5f8293];
   for(let i=0;i<5;i++){const c=box(scene,[1.4,1.1,1.35],[-1+(i%2)*2,1.65,-6+i*3],mat(colors[i%3]));c.userData.baseZ=-6+i*3;crates.push(c);}
   const base=group(scene,[9,0,1]);cyl(base,1.1,1.1,.5,[0,.25,0],mat(0xd09a43));
   const arm=group(base,[0,.6,0]);box(arm,[.45,4.2,.45],[0,2.1,0],mat(0xd8a63e),[0,0,-.12]);box(arm,[.42,3.3,.42],[.1,4,0],mat(0xe5b84b),[0,0,.65]);box(arm,[1.4,.25,1.3],[.8,5.45,0],mat(0x293136));
   for(const x of [-14,14]){cyl(scene,1.3,1.3,5.5,[x,2.75,-17],mat(0x7c898a));cyl(scene,1.45,1.45,.32,[x,5.4,-17],mat(0x4d595b));}
   const chimney=group(scene,[-12,0,-21]);cyl(chimney,.9,1.4,13,[0,6.5,0],mat(0x7e8580));cyl(chimney,1.15,1.15,.6,[0,12.9,0],mat(0x434d51));
-  s.update=({elapsed,playing})=>{if(!playing)return;crates.forEach(c=>c.position.z=-6+((elapsed*1.8+c.userData.baseZ+6)%15));arm.rotation.z=Math.sin(elapsed*.8)*.24;};
+
+  s.conveyorCrates=crates;
+  s.conveyorRollers=rollers;
+  s.robotArm=arm;
+  s.update=({elapsed,playing,event})=>{
+    if(!playing)return;
+    const halted=event==="production-stop"||event==="production-hold";
+    if(halted) {
+      if(!s.stopState) {
+        s.stopState=true;
+        s.stoppedCratePositions=crates.map((crate)=>crate.position.z);
+        s.stoppedRollerRotations=rollers.map((roller)=>roller.rotation.z);
+      }
+      crates.forEach((crate,index)=>{crate.position.z=s.stoppedCratePositions[index];});
+      rollers.forEach((roller,index)=>{roller.rotation.z=s.stoppedRollerRotations[index];});
+      arm.rotation.z=THREE.MathUtils.lerp(arm.rotation.z,0,.14);
+      return;
+    }
+    s.stopState=false;
+    crates.forEach(c=>c.position.z=-6+((elapsed*1.8+c.userData.baseZ+6)%15));
+    rollers.forEach((roller)=>{roller.rotation.z=elapsed*2.8;});
+    arm.rotation.z=Math.sin(elapsed*.8)*.24;
+  };
   return s;
 }
 

@@ -183,3 +183,11 @@ The current release is a visual prototype. It does **not** yet generate complete
 - Added a short encoder preflight recording to avoid trusting browser codec-advertisement flags alone; the renderer falls through to the next real encoder when a candidate returns no video data.
 - During 1080×1920 capture, the WebGL renderer uses pixel ratio 1 and disables orbit manipulation to reduce GPU work and prevent camera changes; preview pixel ratio and controls are restored afterward.
 - Progress UI updates are throttled to whole percentages rather than triggering React updates every animation frame.
+
+
+## Phase 4 — First non-city scenario rule
+
+- Added an environment-matched factory production-stop rule; rule acceptance now checks that the selected environment matches the rule's declared environment instead of limiting all supported rules to the city.
+- The factory's conveyor crates and rollers now visibly stop and hold during the interruption beat; the robotic arm moves toward its rest position. The production-resume beat restarts crate motion, roller rotation and arm cycling.
+- Added scenario-plan tests, factory animation-state tests, and a Chromium UI check that verifies this prompt is mapped and selects its event beat.
+- This is still a deterministic rule, not general AI understanding or a factory simulation with real machinery physics.

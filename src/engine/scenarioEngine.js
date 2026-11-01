@@ -46,6 +46,21 @@ const RULES = [
       ["00:48", "Power is restored", "Streetlights, windows and traffic signals illuminate again.", "Electricity returns to the city.", "restored", "resolve", 8]
     ]
   }
+  {
+    id: "factory",
+    pattern: /(?:factory|assembly line|production line).{0,35}(?:stop|stops|stopped|halt|halts|halted|shut down|shutdown)|(?:stop|stops|stopped|halt|halts|halted|shut down|shutdown).{0,35}(?:factory|assembly line|production line)/i,
+    label: "FACTORY PRODUCTION STOPS",
+    phenomenon: "A factory production line stops unexpectedly",
+    environment: "factory",
+    supported: true,
+    beats: [
+      ["00:00", "A factory at full speed", "Conveyor crates move through the line while rollers turn and a robotic arm cycles above the production floor.", "The factory line is running at full speed.", "normal", "establish", 8],
+      ["00:08", "Production suddenly stops", "The conveyor motion halts. Crates and rollers stop while the robotic arm moves toward a safe resting position.", "The entire production line stops.", "production-stop", "event", 5],
+      ["00:13", "The line remains still", "The conveyor, rollers and robotic arm stay paused while the factory waits for a restart decision.", "The factory remains unusually quiet.", "production-hold", "detail", 14],
+      ["00:27", "The line starts moving again", "The conveyor resumes carrying crates, rollers turn, and the robotic arm returns to its operating cycle.", "The production line begins moving again.", "production-resume", "aftermath", 21],
+      ["00:48", "Production is restored", "The crates, rollers and robotic arm settle into their regular coordinated motion.", "The factory is back in operation.", "restored", "resolve", 8]
+    ]
+  },
 ];
 
 const UNMAPPED_BEATS = [
@@ -76,7 +91,7 @@ export function buildScenarioPlan(prompt) {
   const text = String(prompt || "").trim();
   const rule = RULES.find(function (item) { return item.pattern.test(text); });
   const detectedEnvironment = detectEnvironment(text);
-  const selected = (rule && detectedEnvironment === "urban") ? rule : {
+  const selected = (rule && detectedEnvironment === rule.environment) ? rule : {
     id: "exploration",
     label: "SCENARIO EXPLORATION",
     phenomenon: "Unmapped What If scenario",

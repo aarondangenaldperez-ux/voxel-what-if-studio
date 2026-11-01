@@ -69,6 +69,15 @@ test("production app renders WebGL, switches environments, and exports a storybo
         return viewport?.dataset.environment === expected &&
           canvasElement && canvasElement.width > 0 && canvasElement.height > 0;
       }, environment, { timeout: 10000 });
+
+      if (environment === "factory") {
+        const mappingStatus = await page.locator(".engine-status").innerText();
+        assert.match(mappingStatus, /MAPPED EVENT.*FACTORY PRODUCTION STOPS/);
+        await page.locator(".beat").nth(1).click();
+        await page.waitForFunction(() =>
+          document.querySelector(".scene-caption strong")?.textContent === "The entire production line stops."
+        );
+      }
     }
 
 

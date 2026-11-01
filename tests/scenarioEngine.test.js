@@ -61,3 +61,23 @@ test('mapped city physics is not falsely claimed for a different environment', (
   assert.equal(plan.supported, false);
   assert.equal(plan.id, 'exploration');
 });
+
+test('factory stop prompt creates a mapped five-beat production-line storyboard', () => {
+  const plan = buildScenarioPlan('What if a factory stopped?');
+  assert.equal(plan.id, 'factory');
+  assert.equal(plan.supported, true);
+  assert.equal(plan.environment, 'factory');
+  assert.equal(plan.beats.length, 5);
+  assert.equal(plan.beats[1].event, 'production-stop');
+  assert.equal(plan.beats[1].durationSeconds, 5);
+  assert.equal(plan.beats[2].event, 'production-hold');
+  assert.equal(plan.beats[3].event, 'production-resume');
+  assert.equal(plan.beats[4].event, 'restored');
+  assert.equal(plan.durationSeconds, 56);
+});
+
+test('factory stop intent also maps when the action phrase comes first', () => {
+  const plan = buildScenarioPlan('What if production stopped at the factory?');
+  assert.equal(plan.id, 'factory');
+  assert.equal(plan.supported, true);
+});
