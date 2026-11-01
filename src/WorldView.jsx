@@ -13,6 +13,7 @@ const palettes = {
 export default function WorldView({ mood = 'calm', playing = false }) {
   const host = useRef(null);
   const state = useRef({ mood, playing });
+  const visual = useRef(null);
   useEffect(() => { state.current = { mood, playing }; }, [mood, playing]);
 
   useEffect(() => {
@@ -101,6 +102,7 @@ export default function WorldView({ mood = 'calm', playing = false }) {
     center.scale.set(1.8, 0.55, 1.8); center.position.set(0, 0.28, 0); center.castShadow = true; scene.add(center);
     const beacon = new THREE.Mesh(new THREE.BoxGeometry(0.22, 2.2, 0.22), new THREE.MeshStandardMaterial({ color: palettes[mood].accent, emissive: palettes[mood].accent, emissiveIntensity: 0.65 }));
     beacon.position.set(0, 1.6, 0); scene.add(beacon);
+    visual.current = { scene, sun, groundMat, beaconMat: beacon.material };
 
     const clock = new THREE.Clock();
     let frame;
@@ -131,18 +133,22 @@ export default function WorldView({ mood = 'calm', playing = false }) {
         if (o.geometry) o.geometry.dispose();
         if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.dispose());
       });
+      visual.current = null;
       renderer.dispose();
       if (renderer.domElement.parentNode === el) el.removeChild(renderer.domElement);
     };
   }, []);
 
   useEffect(() => {
-    const el = host.current;
-    if (!el) return;
+    const view = visual.current;
+    if (!view) return;
     const colors = palettes[mood];
-    // Update the preview's overall atmosphere without rebuilding its geometry.
-    const canvas = el.querySelector('canvas');
-    if (canvas) canvas.dataset.mood = mood;
+    view.scene.background.setHex(colors.sky);
+    view.scene.fog.color.setHex(colors.fog);
+    view.sun.color.setHex(colors.light);
+    view.groundMat.color.setHex(colors.ground);
+    view.beaconMat.color.setHex(colors.accent);
+    view.beaconMat.emissive.setHex(colors.accent);
   }, [mood]);
 
   return <div className="world-view" ref={host} aria-label="Interactive 3D voxel village preview"><div className="world-vignette" /></div>;
