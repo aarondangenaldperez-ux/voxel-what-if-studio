@@ -112,7 +112,14 @@ export async function recordCanvasVideo({
   };
 
   drawFrame(0);
-  const stream = output.captureStream(fps);
+  let stream = output.captureStream(0);
+  let captureTrack = stream.getVideoTracks()[0];
+  const manualCapture = typeof captureTrack?.requestFrame === "function";
+  if (!manualCapture) {
+    stream.getTracks().forEach((track) => track.stop());
+    stream = output.captureStream(fps);
+    captureTrack = null;
+  }
   let recorder;
   try {
     recorder = new MediaRecorderClass(stream, {
@@ -170,13 +177,20 @@ export async function recordCanvasVideo({
     try {
       recorder.start(1000);
       const startedAt = performance.now();
+      const frameInterval = 1000 / fps;
+      let lastCapturedAt = -Infinity;
+      if (manualCapture) captureTrack.requestFrame();
       onTime(0, getBeatAtTime(beats, 0));
       onProgress(0);
       const renderFrame = (timestamp) => {
         if (recorder.state !== "recording") return;
         try {
           const elapsed = Math.min(durationSeconds, Math.max(0, (timestamp - startedAt) / 1000));
-          drawFrame(elapsed);
+          if (!manualCapture || timestamp - lastCapturedAt >= frameInterval) {
+            drawFrame(elapsed);
+            if (manualCapture) captureTrack.requestFrame();
+            lastCapturedAt = timestamp;
+          }
           onTime(elapsed, getBeatAtTime(beats, elapsed));
           onProgress(elapsed / durationSeconds);
           if (elapsed >= durationSeconds) {

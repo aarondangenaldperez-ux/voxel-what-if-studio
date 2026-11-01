@@ -88,15 +88,27 @@ test("production app renders WebGL, switches environments, and exports a storybo
         return { supported: false, reason: "Canvas composition or captureStream is unavailable" };
       }
 
+      const initialStream = composition.captureStream(0);
+      let stream = initialStream;
+      let captureTrack = stream.getVideoTracks()[0];
+      const manualCapture = typeof captureTrack?.requestFrame === "function";
+      if (!manualCapture) {
+        stream.getTracks().forEach((track) => track.stop());
+        stream = composition.captureStream(30);
+        captureTrack = null;
+      }
       let animationId = 0;
-      const draw = () => {
+      let lastFrameAt = -Infinity;
+      const draw = (timestamp) => {
         context.fillStyle = "#080d12";
         context.fillRect(0, 0, composition.width, composition.height);
         context.drawImage(source, 0, 0, composition.width, composition.height);
+        if (manualCapture && timestamp - lastFrameAt >= 1000 / 30) {
+          captureTrack.requestFrame();
+          lastFrameAt = timestamp;
+        }
         animationId = requestAnimationFrame(draw);
       };
-      draw();
-
       const candidates = [
         "video/webm;codecs=vp8",
         "video/webm;codecs=vp9",
@@ -110,7 +122,6 @@ test("production app renders WebGL, switches environments, and exports a storybo
         return { supported: false, reason: "No supported video MIME type" };
       }
 
-      const stream = composition.captureStream(30);
       let recorder;
       try {
         recorder = new MediaRecorder(stream, { mimeType });
@@ -139,6 +150,8 @@ test("production app renders WebGL, switches environments, and exports a storybo
           });
         };
         recorder.start();
+        if (manualCapture) captureTrack.requestFrame();
+        animationId = requestAnimationFrame(draw);
         window.setTimeout(() => {
           if (recorder.state === "recording") recorder.stop();
         }, 1500);
