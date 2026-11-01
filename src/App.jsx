@@ -14,6 +14,7 @@ export default function App() {
   const [activeBeatIndex, setActiveBeatIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [cameraMode, setCameraMode] = useState('auto');
+  const [lighting, setLighting] = useState(100);
   const [playheadSeconds, setPlayheadSeconds] = useState(0);
   const playheadRef = useRef(0);
   const [showNotes, setShowNotes] = useState(true);
@@ -257,7 +258,7 @@ export default function App() {
 
           <div className="viewport">
             <Suspense fallback={<div className="viewport-loading">LOADING 3D SCENE ENGINE…</div>}>
-              <WorldView scenario={scenario} beat={active} playing={playing} cameraMode={cameraMode} captureRef={captureRef} />
+              <WorldView scenario={scenario} beat={active} playing={playing} cameraMode={cameraMode} lighting={lighting} captureRef={captureRef} />
             </Suspense>
             <div className="viewport-top">
               <span className="live-pill"><span /> 3D SCENE</span>
@@ -276,6 +277,10 @@ export default function App() {
             <div className="viewport-bottom"><span>CAMERA · {active.camera.toUpperCase()}</span><span>ENVIRONMENT · {scenario.environment.toUpperCase()}</span></div>
           </div>
 
+          <div className="lighting-controls">
+            <label className="lighting-label" htmlFor="lighting-intensity"><span>LIGHTING RIG</span><strong>{lighting}%</strong></label>
+            <input className="lighting-slider" id="lighting-intensity" type="range" min="30" max="160" step="5" value={lighting} aria-label="Scene lighting intensity" disabled={exporting} onChange={(event) => setLighting(Number(event.target.value))} />
+          </div>
           <div className="transport">
             <button className="play-button" onClick={togglePlayback} disabled={exporting}>
               <Play size={15} fill="currentColor" /> {playing ? 'PAUSE PREVIEW' : 'PLAY STORY PREVIEW'}

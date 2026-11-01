@@ -64,6 +64,16 @@ test("production app renders WebGL, switches environments, and exports a storybo
       return view?.dataset.cameraMode === 'auto' && view?.dataset.orbitControls === 'false';
     });
 
+    const lightSlider = page.locator('.lighting-slider');
+    assert.equal(await lightSlider.inputValue(), '100');
+    await lightSlider.focus();
+    await page.keyboard.press('End');
+    await page.waitForFunction(() => {
+      const slider = document.querySelector('.lighting-slider');
+      const view = document.querySelector('.world-view');
+      return slider?.value === '160' && Number(view?.dataset.keyLightIntensity) >= 4.7;
+    });
+
     const timelineScrubber = page.locator('.timeline-scrubber');
     await page.locator('.beat').nth(1).click();
     await page.waitForFunction(() => document.querySelector('.timeline-scrubber')?.value === '8');

@@ -28,13 +28,13 @@ const MOODS = {
   aftermath: { sky: 0x14242b, fog: 0x1b2c32 }
 };
 
-export default function WorldView({ scenario, beat, playing, cameraMode = 'auto', captureRef }) {
+export default function WorldView({ scenario, beat, playing, cameraMode = 'auto', lighting = 100, captureRef }) {
   const host = useRef(null);
-  const state = useRef({ scenario, beat, playing, cameraMode });
+  const state = useRef({ scenario, beat, playing, cameraMode, lighting });
 
   useEffect(() => {
-    state.current = { scenario, beat, playing, cameraMode };
-  }, [scenario, beat, playing, cameraMode]);
+    state.current = { scenario, beat, playing, cameraMode, lighting };
+  }, [scenario, beat, playing, cameraMode, lighting]);
 
   useEffect(() => {
     const element = host.current;
@@ -69,7 +69,8 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
     controls.maxPolarAngle = Math.PI * 0.48;
     controls.target.set(0, 1, 0);
 
-    scene.add(new THREE.HemisphereLight(0xc8e3ff, 0x29302a, 1.9));
+    const hemisphereLight = new THREE.HemisphereLight(0xc8e3ff, 0x29302a, 1.9);
+    scene.add(hemisphereLight);
     const keyLight = new THREE.DirectionalLight(0xffdfb2, 3.0);
     keyLight.position.set(-12, 22, 15);
     keyLight.castShadow = true;
@@ -131,6 +132,12 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
       const currentBeat = current.beat || {};
       const event = currentBeat.event || 'normal';
       const isPlaying = current.playing;
+      const lightScale = THREE.MathUtils.clamp(Number(current.lighting) || 100, 30, 160) / 100;
+      hemisphereLight.intensity = THREE.MathUtils.lerp(hemisphereLight.intensity, 1.9 * lightScale, 0.08);
+      keyLight.intensity = THREE.MathUtils.lerp(keyLight.intensity, 3.0 * lightScale, 0.08);
+      fillLight.intensity = THREE.MathUtils.lerp(fillLight.intensity, 0.8 * lightScale, 0.08);
+      element.dataset.lighting = String(Math.round(Number(current.lighting) || 100));
+      element.dataset.keyLightIntensity = keyLight.intensity.toFixed(2);
       const manualCamera = current.cameraMode === 'orbit';
       controls.enabled = manualCamera && !exportSize;
       element.dataset.cameraMode = manualCamera ? 'orbit' : 'auto';
