@@ -112,7 +112,7 @@ function school(scene) {
     const time=Math.max(0,Number(elapsed)||0);
     bus.position.x=3+Math.sin(time*.32)*1.5;
     people.forEach((p,i)=>{
-      const swing=Math.sin(time*3+i)*.25;
+      const swing=(Math.sin(time*3+i)-Math.sin(i))*.25;
       p.arms[0].rotation.x=swing;
       p.arms[1].rotation.x=-swing;
     });
@@ -161,13 +161,13 @@ function ocean(scene) {
     waterSurface.visible=waterOpacity>0.001;
 
     fishList.forEach(f=>{
-      const normalY=f.userData.baseY+Math.sin(time*1.3+f.userData.phase)*.18;
+      const normalY=f.userData.baseY+(Math.sin(time*1.3+f.userData.phase)-Math.sin(f.userData.phase))*.18;
       const targetY=time<lossStart?normalY:(time<returnStart
         ? THREE.MathUtils.lerp(normalY,.55,dropProgress)
         : THREE.MathUtils.lerp(.55,normalY,returnProgress));
-      f.position.x=f.userData.baseX+Math.sin(time*.32+f.userData.phase)*2.5;
+      f.position.x=f.userData.baseX+(Math.sin(time*.32+f.userData.phase)-Math.sin(f.userData.phase))*2.5;
       f.position.y=targetY;
-      f.rotation.y=Math.sin(time*.3+f.userData.phase)*.12;
+      f.rotation.y=(Math.sin(time*.3+f.userData.phase)-Math.sin(f.userData.phase))*.12;
     });
 
     const normalSubY=5+Math.sin(time*.55)*.32;
@@ -198,7 +198,7 @@ function space(scene) {
     const time=Math.max(0,Number(elapsed)||0);
     planet.rotation.y=time*.035;
     moon.rotation.y=time*.06;
-    sat.position.set(7+Math.cos(time*.28)*3.2,Math.sin(time*.28)*1.7,Math.sin(time*.28)*3.2);
+    sat.position.set(7+(Math.cos(time*.28)-1)*3.2,Math.sin(time*.28)*1.7,Math.sin(time*.28)*3.2);
     sat.rotation.z=time*.18;
     ship.position.y=-5+Math.sin(time*.6)*.3;
     ship.rotation.z=Math.sin(time*.35)*.04;
