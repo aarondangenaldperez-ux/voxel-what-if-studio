@@ -26,3 +26,15 @@
 @media(max-width:650px){.viewport{width:min(100%,390px)!important;max-height:none;aspect-ratio:9/16;height:auto!important;min-height:0!important}.scene-caption{bottom:50px}.scene-caption strong{font-size:18px}}
 
 .viewport-loading{position:absolute;inset:0;display:grid;place-items:center;background:#111c24;color:#9bd8c7;font:10px 'DM Mono';letter-spacing:.1em}
+
+
+/* Browser video rendering */
+.video-export-panel{margin:4px 0 2px;padding:14px;border:1px solid #38584f;border-radius:7px;background:linear-gradient(115deg,#13251f,#10181d)}
+.video-export-button{width:100%;display:flex;align-items:center;justify-content:center;gap:9px;padding:12px 14px;border:1px solid #92d8c5;border-radius:5px;background:#9bd8c7;color:#10231f;font:700 10px 'DM Sans';letter-spacing:.06em;cursor:pointer}
+.video-export-button:disabled{opacity:.58;cursor:wait}
+.video-export-meta{margin-top:8px;color:#82968f;font:8px/1.5 'DM Mono';letter-spacing:.04em;text-align:center}
+.video-export-track{height:4px;margin-top:11px;border-radius:4px;overflow:hidden;background:#293a37}
+.video-export-track span{display:block;height:100%;background:#95d9c5;transition:width .15s}
+.video-export-success{margin-top:9px;color:#9edcc8;font:8px/1.5 'DM Mono';text-align:center}
+.video-export-error{margin-top:9px;color:#f0a49c;font:9px/1.5 'DM Sans';text-align:center}
+.video-export-panel+.insight-card{padding-top:15px}

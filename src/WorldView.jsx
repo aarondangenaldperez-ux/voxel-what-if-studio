@@ -28,7 +28,7 @@ const MOODS = {
   aftermath: { sky: 0x14242b, fog: 0x1b2c32 }
 };
 
-export default function WorldView({ scenario, beat, playing }) {
+export default function WorldView({ scenario, beat, playing, captureRef }) {
   const host = useRef(null);
   const state = useRef({ scenario, beat, playing });
 
@@ -90,10 +90,11 @@ export default function WorldView({ scenario, beat, playing }) {
     const skyTarget = new THREE.Color();
     const fogTarget = new THREE.Color();
     let frameId = 0;
+    let exportSize = null;
 
     function resize() {
-      const width = Math.max(1, element.clientWidth);
-      const height = Math.max(1, element.clientHeight);
+      const width = Math.max(1, exportSize?.width || element.clientWidth);
+      const height = Math.max(1, exportSize?.height || element.clientHeight);
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       renderer.setSize(width, height, false);
@@ -102,6 +103,14 @@ export default function WorldView({ scenario, beat, playing }) {
     const resizeObserver = new ResizeObserver(resize);
     resizeObserver.observe(element);
     resize();
+
+    if (captureRef) {
+      captureRef.current = {
+        canvas: renderer.domElement,
+        setOutputSize(width, height) { exportSize = { width, height }; resize(); },
+        resetOutputSize() { exportSize = null; resize(); }
+      };
+    }
 
     function animate() {
       frameId = requestAnimationFrame(animate);
@@ -187,6 +196,7 @@ export default function WorldView({ scenario, beat, playing }) {
     return () => {
       cancelAnimationFrame(frameId);
       resizeObserver.disconnect();
+      if (captureRef?.current?.canvas === renderer.domElement) captureRef.current = null;
       controls.dispose();
       scene.traverse((object) => {
         if (object.geometry) object.geometry.dispose();
@@ -200,7 +210,7 @@ export default function WorldView({ scenario, beat, playing }) {
         element.removeChild(renderer.domElement);
       }
     };
-  }, [scenario?.environment]);
+  }, [scenario?.environment, captureRef]);
 
   return <div className="world-view" ref={host} data-environment={scenario?.environment || 'urban'} aria-label="Interactive animated 3D scenario preview" />;
 }

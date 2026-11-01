@@ -71,6 +71,39 @@ test("production app renders WebGL, switches environments, and exports a storybo
       }, environment, { timeout: 10000 });
     }
 
+
+    const recordingCheck = await page.evaluate(async () => {
+      const source = document.querySelector(".world-view canvas");
+      if (!source || typeof source.captureStream !== "function" || !window.MediaRecorder) {
+        return { supported: false, reason: "Canvas capture or MediaRecorder is unavailable" };
+      }
+      const candidates = [
+        "video/mp4;codecs=avc1.42E01E",
+        "video/mp4",
+        "video/webm;codecs=vp9",
+        "video/webm;codecs=vp8",
+        "video/webm"
+      ];
+      const mimeType = candidates.find((type) => MediaRecorder.isTypeSupported(type));
+      if (!mimeType) return { supported: false, reason: "No supported video MIME type" };
+      const stream = source.captureStream(30);
+      const recorder = new MediaRecorder(stream, { mimeType });
+      const chunks = [];
+      return await new Promise((resolve, reject) => {
+        recorder.ondataavailable = (event) => { if (event.data?.size) chunks.push(event.data); };
+        recorder.onerror = (event) => reject(event.error || new Error("MediaRecorder failed"));
+        recorder.onstop = () => {
+          stream.getTracks().forEach((track) => track.stop());
+          const blob = new Blob(chunks, { type: recorder.mimeType || mimeType });
+          resolve({ supported: true, mimeType, size: blob.size, type: blob.type });
+        };
+        recorder.start(100);
+        window.setTimeout(() => recorder.stop(), 700);
+      });
+    });
+    assert.equal(recordingCheck.supported, true, recordingCheck.reason || "browser should support canvas video recording");
+    assert.ok(recordingCheck.size > 0, "browser should produce a non-empty recorded video");
+
     const downloadPromise = page.waitForEvent("download");
     await page.locator(".export-button").click();
     const download = await downloadPromise;

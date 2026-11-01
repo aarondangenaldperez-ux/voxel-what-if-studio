@@ -1,8 +1,9 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity, Clapperboard, Download, Film, Layers3, Lightbulb, Play,
-  RotateCcw, Sparkles, WandSparkles
+  RotateCcw, Sparkles, Video, WandSparkles
 } from 'lucide-react';
+import { recordCanvasVideo } from './engine/videoExport.js';
 const WorldView = lazy(() => import('./WorldView.jsx'));
 import { buildScenarioPlan } from './engine/scenarioEngine.js';
 import { ENVIRONMENT_LABELS } from './engine/environmentCatalog.js';
@@ -13,6 +14,11 @@ export default function App() {
   const [activeBeatIndex, setActiveBeatIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [showNotes, setShowNotes] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0);
+  const [exportMessage, setExportMessage] = useState('');
+  const [exportError, setExportError] = useState('');
+  const captureRef = useRef(null);
 
   const beats = scenario.beats;
   const active = beats[activeBeatIndex] || beats[0];
@@ -28,7 +34,7 @@ export default function App() {
   const promptLength = useMemo(() => question.trim().length, [question]);
 
   useEffect(() => {
-    if (!playing) return undefined;
+    if (!playing || exporting) return undefined;
     const timer = window.setTimeout(() => {
       if (activeBeatIndex >= beats.length - 1) {
         setPlaying(false);
@@ -37,7 +43,7 @@ export default function App() {
       setActiveBeatIndex((current) => Math.min(current + 1, beats.length - 1));
     }, beatDurationsMs[activeBeatIndex] || 8000);
     return () => window.clearTimeout(timer);
-  }, [playing, activeBeatIndex, beats.length, beatDurationsMs]);
+  }, [playing, exporting, activeBeatIndex, beats.length, beatDurationsMs]);
 
   const generateStory = () => {
     const nextScenario = buildScenarioPlan(question);
@@ -108,7 +114,7 @@ export default function App() {
           <textarea
             id="whatif"
             value={question}
-            onChange={(event) => setQuestion(event.target.value)}
+            onChange={(event) => setQuestion(event.target.value)}\n            disabled={exporting}
             maxLength={150}
             placeholder="What if..."
           />
@@ -116,7 +122,7 @@ export default function App() {
             <span>{promptLength}/150 characters</span>
             <span className="ready"><span /> READY TO PLAN</span>
           </div>
-          <button className="generate-button" onClick={generateStory}>
+          <button className="generate-button" onClick={generateStory} disabled={exporting}>
             <WandSparkles size={15} /> GENERATE STORYBOARD
           </button>
           <div className="engine-status">
@@ -131,7 +137,7 @@ export default function App() {
               <button
                 key={beat.title}
                 className={'beat ' + (activeBeatIndex === index ? 'selected ' : '') + (index < activeBeatIndex ? 'passed' : '')}
-                onClick={() => { setActiveBeatIndex(index); setPlaying(false); }}
+                disabled={exporting}\n                onClick={() => { setActiveBeatIndex(index); setPlaying(false); }}
               >
                 <span className="beat-marker">{index < activeBeatIndex ? '✓' : String(index + 1).padStart(2, '0')}</span>
                 <span className="beat-copy"><b>{beat.title}</b><small>{beat.time} · {beat.durationSeconds}s</small></span>
@@ -140,8 +146,8 @@ export default function App() {
             ))}
           </div>
           <div className="sidebar-bottom">
-            <button className="secondary-button" onClick={reset}><RotateCcw size={15} /> Reset sequence</button>
-            <button className="export-button" onClick={exportBrief}><Download size={15} /> Export storyboard</button>
+            <button className="secondary-button" onClick={reset} disabled={exporting}><RotateCcw size={15} /> Reset sequence</button>
+            <button className="export-button" onClick={exportBrief} disabled={exporting}><Download size={15} /> Export storyboard</button>
           </div>
         </aside>
 
@@ -156,11 +162,11 @@ export default function App() {
 
           <div className="viewport">
             <Suspense fallback={<div className="viewport-loading">LOADING 3D SCENE ENGINE…</div>}>
-              <WorldView scenario={scenario} beat={active} playing={playing} />
+              <WorldView scenario={scenario} beat={active} playing={playing} captureRef={captureRef} />
             </Suspense>
             <div className="viewport-top">
               <span className="live-pill"><span /> 3D SCENE</span>
-              <span className="viewport-label">PROCEDURAL CITY / REAL-TIME</span>
+              <span className="viewport-label">REAL-TIME / VERTICAL SCENE</span>
             </div>
             <div className="scene-caption" aria-live="polite">
               <span>{scenario.label}</span>
@@ -171,7 +177,7 @@ export default function App() {
           </div>
 
           <div className="transport">
-            <button className="play-button" onClick={togglePlayback}>
+            <button className="play-button" onClick={togglePlayback} disabled={exporting}>
               <Play size={15} fill="currentColor" /> {playing ? 'PAUSE PREVIEW' : 'PLAY STORY PREVIEW'}
             </button>
             <div className="progress-wrap">
@@ -181,6 +187,17 @@ export default function App() {
             <button className="icon-button" title="Reset sequence" onClick={reset}><RotateCcw size={16} /></button>
           </div>
 
+          <div className="video-export-panel">
+            <button className="video-export-button" onClick={exportVideo} disabled={exporting}>
+              <Video size={16} />
+              {exporting ? 'RENDERING VIDEO · ' + Math.round(exportProgress * 100) + '%' : 'RENDER FULL VERTICAL VIDEO'}
+            </button>
+            <div className="video-export-meta">1080 × 1920 · 30 FPS · STORY CAPTIONS · MP4 WHEN SUPPORTED, OTHERWISE WEBM</div>
+            {exporting && <div className="video-export-track"><span style={{ width: Math.round(exportProgress * 100) + '%' }} /></div>}
+            {exporting && <div className="video-export-meta">Keep this tab open and visible while the real-time render runs.</div>}
+            {exportMessage && <div className="video-export-success">{exportMessage}</div>}
+            {exportError && <div className="video-export-error" role="alert">{exportError}</div>}
+          </div>
           <div className="insight-card">
             <div className="insight-icon"><Lightbulb size={17} /></div>
             <div className="insight-copy">

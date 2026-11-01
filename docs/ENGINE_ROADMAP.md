@@ -164,3 +164,18 @@ The current release is a visual prototype. It does **not** yet generate complete
 
 - Added Node smoke tests that instantiate every added environment, count actual Three.js renderable objects, and execute each environment update callback.
 - These tests are not a substitute for device/browser visual QA, frame-rate profiling, or a completed recorded-video inspection.
+
+
+## Phase 3 — First browser video-render path (implemented slice)
+
+- Added real browser video capture from the Three.js WebGL preview through a 1080×1920 composition canvas at 30fps.
+- Storyboard beat timing drives the scene during capture; current beat captions are burned into the video frames.
+- The exporter chooses a browser-supported MP4 encoder when available and otherwise records a genuine WebM file. It never changes the file extension to pretend that WebM is MP4.
+- Added unit tests for format selection and exact beat boundaries, plus a Chromium browser smoke check that records a short clip from the live WebGL canvas and verifies a non-empty video Blob.
+
+### Remaining P4 work
+
+- No narration or sound track is mixed yet.
+- The render is real-time and browser-tab-bound; there is no offline frame renderer, pause/resume/cancel queue, or server rendering service.
+- Browser/platform codec differences still require physical Android/iOS device tests. Full 56-second exported-file playback, bitrate, frame continuity, and exact media metadata need dedicated QA before this can be treated as a production export pipeline.
+- The current UI uses one 1080×1920 render preset; performance fallback presets and memory limits remain to be implemented.
