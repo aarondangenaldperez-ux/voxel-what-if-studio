@@ -132,7 +132,7 @@ export async function findWorkingRecordingFormat(
   throw new Error("The browser advertised video encoders, but none produced a valid recording. Try another browser.");
 }
 
-export { getBeatAtTime } from "./sceneTimeline.js";
+
 function drawCaption(context, beat, width, height) {
   if (!beat?.caption) return;
   const gradient = context.createLinearGradient(0, height * 0.73, 0, height);
