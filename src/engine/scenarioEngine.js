@@ -79,14 +79,14 @@ const RULES = [
 ];
 
 const UNMAPPED_BEATS = [
-  ["00:00", "Establish the world", "A procedural city provides a visual setting for the idea.", "Start with an ordinary city.", "normal", "establish", 8],
-  ["00:08", "Introduce the question", "The selected topic is shown, but no specific physical effect is assumed.", "What changes when this happens?", "unmapped", "event", 5],
-  ["00:13", "Explore the setting", "Inspect the environment while the scenario is awaiting a dedicated rule.", "The scene is ready for a mapped event.", "unmapped", "detail", 14],
-  ["00:27", "Consider the consequences", "This preview does not invent scientific consequences for an unmapped topic.", "A scenario-specific rule is needed here.", "unmapped", "aftermath", 21],
-  ["00:48", "Return to the prompt", "The prompt remains available for a future scenario rule or connected story planner.", "This is an environment preview, not a generated prediction.", "unmapped", "resolve", 8]
+  ["00:00", "A familiar world", "Establish the everyday setting before exploring the hypothetical.", "Everyday life, in a familiar place.", "normal", "establish", 8],
+  ["00:08", "Imagine the impossible", "The question introduces a possibility, but this build does not simulate its physical effects.", "What would change first?", "unmapped", "event", 5],
+  ["00:13", "Look closer", "Explore details of the environment without inventing scenario-specific outcomes.", "Every detail shapes the world around us.", "unmapped", "detail", 14],
+  ["00:27", "Consider the possibilities", "The consequences remain open until a dedicated scenario simulation exists.", "What might change—and what might stay the same?", "unmapped", "aftermath", 21],
+  ["00:48", "A question worth exploring", "This concept preview is a visual setting, not a generated prediction.", "The possibilities begin with one question.", "unmapped", "resolve", 8]
 ];
 
-function buildBeats(rows) {
+function buildBeats(rows, scenarioSupported = true) {
   return rows.map(function (row, index) {
     return {
       index: index,
@@ -97,6 +97,7 @@ function buildBeats(rows) {
       event: row[4],
       camera: row[5],
       durationSeconds: row[6],
+      scenarioSupported: Boolean(scenarioSupported),
       mood: ["calm", "shock", "warning", "chaos", "aftermath"][index]
     };
   });
@@ -114,7 +115,7 @@ export function buildScenarioPlan(prompt) {
     supported: false,
     beats: UNMAPPED_BEATS
   };
-  const beats = buildBeats(selected.beats);
+  const beats = buildBeats(selected.beats, selected.supported);
   const durationSeconds = beats.reduce(function (total, beat) {
     return total + beat.durationSeconds;
   }, 0);
