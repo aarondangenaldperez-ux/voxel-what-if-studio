@@ -49,6 +49,8 @@ test("production app renders WebGL, switches environments, and exports a storybo
     });
     assert.ok(initialCanvas.width > 0 && initialCanvas.height > 0, "canvas should have a real render size");
     assert.equal(initialCanvas.hasWebGL, true, "a WebGL context should be created");
+    const mobileRenderScale = await page.locator('.world-view').getAttribute('data-render-pixel-ratio');
+    assert.ok(Number(mobileRenderScale) <= 1.25, "mobile preview should cap GPU pixel ratio to protect device performance");
     const hostToggle = page.locator('.camera-mode-button[data-mode="presenter"]');
     await page.waitForFunction(() => document.querySelector('.world-view')?.dataset.presenterVisible === 'true');
     await hostToggle.click();
