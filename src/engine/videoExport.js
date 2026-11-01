@@ -1,3 +1,6 @@
+import { getBeatAtTime } from "./sceneTimeline.js";
+export { getBeatAtTime } from "./sceneTimeline.js";
+
 const RECORDING_FORMATS = [
   { mimeType: "video/mp4;codecs=avc1.42E01E", extension: "mp4" },
   { mimeType: "video/mp4", extension: "mp4" },
@@ -129,17 +132,7 @@ export async function findWorkingRecordingFormat(
   throw new Error("The browser advertised video encoders, but none produced a valid recording. Try another browser.");
 }
 
-export function getBeatAtTime(beats, elapsedSeconds) {
-  if (!Array.isArray(beats) || beats.length === 0) return null;
-  const elapsed = Math.max(0, Number(elapsedSeconds) || 0);
-  let boundary = 0;
-  for (let index = 0; index < beats.length; index += 1) {
-    boundary += Math.max(0, Number(beats[index].durationSeconds) || 0);
-    if (elapsed < boundary || index === beats.length - 1) return beats[index];
-  }
-  return beats[beats.length - 1];
-}
-
+export { getBeatAtTime } from "./sceneTimeline.js";
 function drawCaption(context, beat, width, height) {
   if (!beat?.caption) return;
   const gradient = context.createLinearGradient(0, height * 0.73, 0, height);
