@@ -12,6 +12,13 @@ const CAMERA_SHOTS = {
   resolve: { position: [10, 7, 22], target: [0, 2.5, 7.5] }
 };
 
+const RUBBER_CAMERA_SHOTS = {
+  ...CAMERA_SHOTS,
+  event: { position: [14, 8, 18], target: [0, 0.8, 0] },
+  detail: { position: [-9.8, 4.6, 8.8], target: [-8.2, 0.7, 1.55] },
+  aftermath: { position: [-13, 7.5, 15], target: [0, 0.9, 0] }
+};
+
 const ENVIRONMENT_MOODS = {
   ocean: { calm:{sky:0x06344a,fog:0x0a4050},shock:{sky:0x0a5366,fog:0x0a4050},warning:{sky:0x184a58,fog:0x0a4050},chaos:{sky:0x123b50,fog:0x0a4050},aftermath:{sky:0x06344a,fog:0x0a4050} },
   space: { calm:{sky:0x050916,fog:0x050916},shock:{sky:0x18142a,fog:0x050916},warning:{sky:0x1a111d,fog:0x050916},chaos:{sky:0x100d25,fog:0x050916},aftermath:{sky:0x050916,fog:0x050916} },
@@ -148,7 +155,8 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
       element.dataset.cameraMode = manualCamera ? 'orbit' : 'auto';
       element.dataset.orbitControls = String(controls.enabled);
       if (!manualCamera) {
-        const cameraShot = CAMERA_SHOTS[currentBeat.camera] || CAMERA_SHOTS.establish;
+        const shotLibrary = currentScenario?.id === 'rubber' ? RUBBER_CAMERA_SHOTS : CAMERA_SHOTS;
+        const cameraShot = shotLibrary[currentBeat.camera] || shotLibrary.establish;
         cameraPosition.set(cameraShot.position[0], cameraShot.position[1], cameraShot.position[2]);
         cameraTarget.set(cameraShot.target[0], cameraShot.target[1], cameraShot.target[2]);
         camera.position.lerp(cameraPosition, 0.035);
@@ -177,14 +185,20 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
 
       city.cars.forEach((car, index) => {
         const base = car.root.userData.basePosition;
-        car.wheels.forEach((wheel) => { wheel.visible = !rubberAbsent; });
-        const targetY = gravityAbsent ? 0.95 + (index * 0.18) : (rubberAbsent ? -0.13 : 0);
+        car.wheels.forEach((wheel) => {
+          wheel.visible = true;
+          const wheelScale = rubberAbsent ? 0.001 : 1;
+          wheel.scale.setScalar(THREE.MathUtils.lerp(wheel.scale.x, wheelScale, 0.18));
+        });
+        const targetY = gravityAbsent ? 0.95 + (index * 0.18) : (rubberAbsent ? -0.22 : 0);
         car.root.position.y = THREE.MathUtils.lerp(car.root.position.y, targetY, 0.075);
         const trafficPaused = currentScenario && currentScenario.id === 'rubber' && event === 'traffic-paused';
         const drift = isPlaying && !rubberAbsent && !trafficPaused ? Math.sin(elapsed * 0.8 + index * 1.7) * 0.22 : 0;
         car.root.position.z = base.z + drift;
+        const tirelessPitch = rubberAbsent ? (index % 2 === 0 ? -0.055 : 0.055) : 0;
+        car.root.rotation.x = THREE.MathUtils.lerp(car.root.rotation.x, tirelessPitch, 0.09);
         car.root.rotation.z = rubberAbsent && isPlaying
-          ? Math.sin(elapsed * 8 + index) * 0.018
+          ? Math.sin(elapsed * 6 + index) * 0.045
           : THREE.MathUtils.lerp(car.root.rotation.z, 0, 0.08);
       });
 
@@ -194,6 +208,11 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
         person.arms[1].rotation.x = gravityAbsent ? 0.48 : -swing;
         person.legs[0].rotation.x = gravityAbsent ? 0.12 : -swing * 0.8;
         person.legs[1].rotation.x = gravityAbsent ? -0.12 : swing * 0.8;
+        const flinch = rubberAbsent ? 0.82 : 0;
+        person.arms[0].rotation.z = THREE.MathUtils.lerp(person.arms[0].rotation.z, -flinch, 0.12);
+        person.arms[1].rotation.z = THREE.MathUtils.lerp(person.arms[1].rotation.z, flinch, 0.12);
+        const lean = rubberAbsent ? (index % 2 === 0 ? 0.045 : -0.045) : 0;
+        person.root.rotation.z = THREE.MathUtils.lerp(person.root.rotation.z, lean, 0.1);
         const floatHeight = gravityAbsent ? 0.95 + Math.sin(elapsed * 2.1 + index) * 0.2 : 0;
         person.root.position.y = THREE.MathUtils.lerp(person.root.position.y, floatHeight, 0.06);
       });
