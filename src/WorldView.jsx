@@ -78,6 +78,8 @@ export default function WorldView({ scenario, beat, playing }) {
     const clock = new THREE.Clock();
     const cameraPosition = new THREE.Vector3();
     const cameraTarget = new THREE.Vector3();
+    const skyTarget = new THREE.Color();
+    const fogTarget = new THREE.Color();
     let frameId = 0;
 
     function resize() {
@@ -107,8 +109,10 @@ export default function WorldView({ scenario, beat, playing }) {
       controls.target.lerp(cameraTarget, 0.035);
 
       const mood = MOODS[currentBeat.mood] || MOODS.calm;
-      scene.background.lerp(new THREE.Color(mood.sky), 0.025);
-      scene.fog.color.lerp(new THREE.Color(mood.fog), 0.025);
+      skyTarget.setHex(mood.sky);
+      fogTarget.setHex(mood.fog);
+      scene.background.lerp(skyTarget, 0.025);
+      scene.fog.color.lerp(fogTarget, 0.025);
 
       const rubberAbsent = currentScenario && currentScenario.id === 'rubber' &&
         ['rubber-loss', 'traffic-paused', 'countdown'].includes(event);

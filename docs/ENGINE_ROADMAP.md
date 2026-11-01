@@ -9,6 +9,20 @@ The current repository is a small React + Vite + Three.js prototype. It is a use
 
 The immediate publishing blocker was found and corrected: the npm `build` script previously ran `vite`, which starts the Vite development server. It must run `vite build` to generate the production `dist/` directory.
 
+
+## Implementation status after the first engine upgrade
+
+### Delivered
+- **P0 — Build reliability:** The `build` script now runs `vite build`; CI has a 10-minute build timeout, checks the output directory, and runs scenario tests before deployment.
+- **P1 — Scenario model (first slice):** A deterministic scenario interpreter now maps rubber, gravity, and electricity prompts into distinct five-beat storyboards. Unsupported prompts are explicitly labelled as unmapped.
+- **P2 — Procedural city (first slice):** The city is now assembled from reusable procedural building, vehicle, pedestrian, streetlight, road, sidewalk, and traffic-signal builders.
+- **P3 — Event timeline (first slice):** Timeline playback follows the 56-second beat schedule. Scenario events alter real 3D meshes and materials, and camera shot targets change between beats.
+- **Mobile preview:** The preview uses a 9:16 aspect ratio and lazy-loads the Three.js scene engine.
+- **Tests:** Four Node test cases cover the three mapped scenarios and the honest fallback for unmapped prompts.
+
+### Not yet delivered
+P2 still needs multiple environment builders and a reusable GLB asset pipeline. P3 still needs richer animation curves, character rigs/expressions, authored shot transitions and scene continuity. P4 (actual WebM/MP4 export, audio, caption synchronization and file validation) and P5 (protected LLM integration) remain future milestones.
+
 ## What exists today
 
 - React 18 application with a responsive, dark production-workspace UI.

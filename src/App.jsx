@@ -6,6 +6,8 @@ import {
 const WorldView = lazy(() => import('./WorldView.jsx'));
 import { buildScenarioPlan } from './engine/scenarioEngine.js';
 
+const BEAT_DURATIONS_MS = [8000, 10000, 14000, 16000, 8000];
+
 export default function App() {
   const [question, setQuestion] = useState('What if all rubber disappeared for 5 seconds?');
   const [scenario, setScenario] = useState(() => buildScenarioPlan('What if all rubber disappeared for 5 seconds?'));
@@ -16,17 +18,17 @@ export default function App() {
   const beats = scenario.beats;
   const active = beats[activeBeatIndex] || beats[0];
   const promptLength = useMemo(() => question.trim().length, [question]);
-  const progress = ((activeBeatIndex + 1) / beats.length) * 100;
+  const progress = (BEAT_DURATIONS_MS.slice(0, activeBeatIndex + 1).reduce((sum, duration) => sum + duration, 0) / 56000) * 100;
 
   useEffect(() => {
     if (!playing) return undefined;
-    if (activeBeatIndex >= beats.length - 1) {
-      setPlaying(false);
-      return undefined;
-    }
     const timer = window.setTimeout(() => {
+      if (activeBeatIndex >= beats.length - 1) {
+        setPlaying(false);
+        return;
+      }
       setActiveBeatIndex((current) => Math.min(current + 1, beats.length - 1));
-    }, 4200);
+    }, BEAT_DURATIONS_MS[activeBeatIndex] || 8000);
     return () => window.clearTimeout(timer);
   }, [playing, activeBeatIndex, beats.length]);
 
