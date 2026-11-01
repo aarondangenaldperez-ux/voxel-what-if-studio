@@ -36,13 +36,13 @@ const MOODS = {
   aftermath: { sky: 0x14242b, fog: 0x1b2c32 }
 };
 
-export default function WorldView({ scenario, beat, playing, cameraMode = 'auto', lighting = 100, presenterVisible = true, captureRef }) {
+export default function WorldView({ scenario, beat, playing, cameraMode = 'auto', lighting = 100, presenterVisible = true, captureRef, timelineRef }) {
   const host = useRef(null);
-  const state = useRef({ scenario, beat, playing, cameraMode, lighting, presenterVisible });
+  const state = useRef({ scenario, beat, playing, cameraMode, lighting, presenterVisible, timelineRef });
 
   useEffect(() => {
-    state.current = { scenario, beat, playing, cameraMode, lighting, presenterVisible };
-  }, [scenario, beat, playing, cameraMode, lighting, presenterVisible]);
+    state.current = { scenario, beat, playing, cameraMode, lighting, presenterVisible, timelineRef };
+  }, [scenario, beat, playing, cameraMode, lighting, presenterVisible, timelineRef]);
 
   useEffect(() => {
     const element = host.current;
@@ -98,7 +98,6 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
 
     const city = buildEnvironment(scene, scenario?.environment || 'urban');
     const presenter = buildVoxelPresenter(scene, { position: [0, 0, 9], scale: 1.05 });
-    const clock = new THREE.Clock();
     const cameraPosition = new THREE.Vector3();
     const cameraTarget = new THREE.Vector3();
     const skyTarget = new THREE.Color();
@@ -138,8 +137,9 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
 
     function animate() {
       frameId = requestAnimationFrame(animate);
-      const elapsed = clock.getElapsedTime();
       const current = state.current;
+      const elapsed = Math.max(0, Number(current.timelineRef?.current) || 0);
+      element.dataset.timelineSeconds = elapsed.toFixed(3);
       const currentScenario = current.scenario;
       const currentBeat = current.beat || {};
       const event = currentBeat.event || 'normal';
