@@ -154,7 +154,9 @@ test("production app renders WebGL, switches environments, and exports real file
     assert.match(storyboard, /What if all rubber disappeared for 5 seconds\?/);
     assert.match(storyboard, /Duration: 00:56/);
 
-    const videoDownloadPromise = page.waitForEvent("download", { timeout: 160000 });
+    const videoDownloadResult = page.waitForEvent("download", { timeout: 160000 })
+      .then((download) => ({ download }))
+      .catch((error) => ({ error }));
     await page.locator(".video-export-button").click();
     await page.waitForFunction(
       () => {
@@ -165,13 +167,21 @@ test("production app renders WebGL, switches environments, and exports real file
       null,
       { timeout: 160000 }
     );
-    const exportError = await page.locator(".video-export-error").textContent();
+
+    const exportError = (await page.locator(".video-export-error").textContent())?.trim();
     assert.equal(
       await page.locator(".video-export-error").count(),
       0,
-      "the app should complete video export without an error: " + (exportError || "")
+      "the app's video export failed: " + (exportError || "unknown export error")
     );
-    const videoDownload = await videoDownloadPromise;
+
+    const videoDownloadOutcome = await videoDownloadResult;
+    assert.ok(
+      videoDownloadOutcome.download,
+      "the app reported a successful export but did not trigger a browser download: " +
+        (videoDownloadOutcome.error?.message || "no download event")
+    );
+    const videoDownload = videoDownloadOutcome.download;
     assert.match(
       videoDownload.suggestedFilename(),
       /^voxel-what-if-rubber\\.(mp4|webm)$/,
