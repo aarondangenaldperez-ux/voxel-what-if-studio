@@ -64,6 +64,20 @@ test("production app renders WebGL, switches environments, and exports a storybo
       return view?.dataset.cameraMode === 'auto' && view?.dataset.orbitControls === 'false';
     });
 
+    const timelineScrubber = page.locator('.timeline-scrubber');
+    await page.locator('.beat').nth(1).click();
+    await page.waitForFunction(() => document.querySelector('.timeline-scrubber')?.value === '8');
+    assert.equal(await timelineScrubber.getAttribute('aria-label'), 'Timeline playhead');
+    await timelineScrubber.focus();
+    await page.keyboard.press('End');
+    await page.waitForFunction(() => {
+      const slider = document.querySelector('.timeline-scrubber');
+      return slider?.value === '56' && document.querySelector('.scene-caption strong')?.textContent === 'The interruption is over.';
+    });
+    await timelineScrubber.focus();
+    await page.keyboard.press('Home');
+    await page.waitForFunction(() => document.querySelector('.timeline-scrubber')?.value === '0');
+
     const scenarios = [
       ["airport", "What if an aircraft vanished at an airport?"],
       ["school", "What if a school vanished?"],

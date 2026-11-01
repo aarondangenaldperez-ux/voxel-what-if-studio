@@ -3,7 +3,7 @@ import {
   Activity, Clapperboard, Download, Film, Layers3, Lightbulb, Play,
   RotateCcw, Sparkles, Video, WandSparkles
 } from 'lucide-react';
-import { recordCanvasVideo } from './engine/videoExport.js';
+import { getBeatAtTime, recordCanvasVideo } from './engine/videoExport.js';
 const WorldView = lazy(() => import('./WorldView.jsx'));
 import { buildScenarioPlan } from './engine/scenarioEngine.js';
 import { ENVIRONMENT_LABELS } from './engine/environmentCatalog.js';
@@ -14,6 +14,8 @@ export default function App() {
   const [activeBeatIndex, setActiveBeatIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [cameraMode, setCameraMode] = useState('auto');
+  const [playheadSeconds, setPlayheadSeconds] = useState(0);
+  const playheadRef = useRef(0);
   const [showNotes, setShowNotes] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
@@ -28,32 +30,49 @@ export default function App() {
     [beats]
   );
   const totalDurationMs = beatDurationsMs.reduce((sum, duration) => sum + duration, 0);
-  const elapsedAtBeatMs = beatDurationsMs.slice(0, activeBeatIndex + 1).reduce((sum, duration) => sum + duration, 0);
-  const progress = totalDurationMs > 0 ? (elapsedAtBeatMs / totalDurationMs) * 100 : 0;
   const totalSeconds = Math.round(totalDurationMs / 1000);
+  const progress = totalSeconds > 0 ? Math.min(100, Math.max(0, (playheadSeconds / totalSeconds) * 100)) : 0;
+  const currentWholeSeconds = Math.floor(playheadSeconds);
+  const currentLabel = `${String(Math.floor(currentWholeSeconds / 60)).padStart(2, '0')}:${String(currentWholeSeconds % 60).padStart(2, '0')}`;
   const totalLabel = `${String(Math.floor(totalSeconds / 60)).padStart(2, '0')}:${String(totalSeconds % 60).padStart(2, '0')}`;
   const promptLength = useMemo(() => question.trim().length, [question]);
 
   useEffect(() => {
     if (!playing || exporting) return undefined;
-    const timer = window.setTimeout(() => {
-      if (activeBeatIndex >= beats.length - 1) {
-        setPlaying(false);
-        return;
-      }
-      setActiveBeatIndex((current) => Math.min(current + 1, beats.length - 1));
-    }, beatDurationsMs[activeBeatIndex] || 8000);
-    return () => window.clearTimeout(timer);
-  }, [playing, exporting, activeBeatIndex, beats.length, beatDurationsMs]);
+    const startedAt = window.performance.now();
+    const startOffset = playheadRef.current;
+    const timer = window.setInterval(() => {
+      const nextSeconds = Math.min(totalSeconds, startOffset + (window.performance.now() - startedAt) / 1000);
+      playheadRef.current = nextSeconds;
+      setPlayheadSeconds(nextSeconds);
+      const beat = getBeatAtTime(beats, nextSeconds);
+      if (beat) setActiveBeatIndex((current) => current === beat.index ? current : beat.index);
+      if (nextSeconds >= totalSeconds) setPlaying(false);
+    }, 33);
+    return () => window.clearInterval(timer);
+  }, [playing, exporting, beats, totalSeconds]);
+
+  const seekTo = (seconds) => {
+    const nextSeconds = Math.min(totalSeconds, Math.max(0, Number(seconds) || 0));
+    playheadRef.current = nextSeconds;
+    setPlayheadSeconds(nextSeconds);
+    const beat = getBeatAtTime(beats, nextSeconds);
+    if (beat) setActiveBeatIndex(beat.index);
+    setPlaying(false);
+  };
 
   const generateStory = () => {
     const nextScenario = buildScenarioPlan(question);
     setScenario(nextScenario);
+    playheadRef.current = 0;
+    setPlayheadSeconds(0);
     setActiveBeatIndex(0);
     setPlaying(false);
   };
 
   const reset = () => {
+    playheadRef.current = 0;
+    setPlayheadSeconds(0);
     setActiveBeatIndex(0);
     setPlaying(false);
   };
@@ -63,7 +82,11 @@ export default function App() {
       setPlaying(false);
       return;
     }
-    if (activeBeatIndex >= beats.length - 1) setActiveBeatIndex(0);
+    if (playheadRef.current >= totalSeconds) {
+      playheadRef.current = 0;
+      setPlayheadSeconds(0);
+      setActiveBeatIndex(0);
+    }
     setPlaying(true);
   };
 
@@ -104,6 +127,8 @@ export default function App() {
     setExportProgress(0);
     setExporting(true);
     setPlaying(true);
+    playheadRef.current = 0;
+    setPlayheadSeconds(0);
     setActiveBeatIndex(0);
 
     try {
@@ -118,10 +143,14 @@ export default function App() {
         width: 1080,
         height: 1920,
         fps: 30,
-        onTime: (_elapsed, beat) => {
+        onTime: (elapsed, beat) => {
           if (beat && beat.index !== lastBeatIndex) {
             lastBeatIndex = beat.index;
             setActiveBeatIndex(beat.index);
+          }
+          if (Math.abs(elapsed - playheadRef.current) >= 0.1 || elapsed >= scenario.durationSeconds) {
+            playheadRef.current = elapsed;
+            setPlayheadSeconds(elapsed);
           }
         },
         onProgress: (value) => {
@@ -203,7 +232,7 @@ export default function App() {
                 key={beat.title}
                 className={'beat ' + (activeBeatIndex === index ? 'selected ' : '') + (index < activeBeatIndex ? 'passed' : '')}
                 disabled={exporting}
-                onClick={() => { setActiveBeatIndex(index); setPlaying(false); }}
+                onClick={() => seekTo(beatDurationsMs.slice(0, index).reduce((sum, duration) => sum + duration, 0) / 1000)}
               >
                 <span className="beat-marker">{index < activeBeatIndex ? '✓' : String(index + 1).padStart(2, '0')}</span>
                 <span className="beat-copy"><b>{beat.title}</b><small>{beat.time} · {beat.durationSeconds}s</small></span>
@@ -252,8 +281,19 @@ export default function App() {
               <Play size={15} fill="currentColor" /> {playing ? 'PAUSE PREVIEW' : 'PLAY STORY PREVIEW'}
             </button>
             <div className="progress-wrap">
-              <div className="progress-track"><span style={{ width: progress + '%' }} /></div>
-              <div className="progress-label"><span>{active.time}</span><span>{totalLabel} · STORYBOARD</span></div>
+              <input
+                className="timeline-scrubber"
+                type="range"
+                min="0"
+                max={totalSeconds}
+                step="0.1"
+                value={Math.min(totalSeconds, playheadSeconds)}
+                style={{ '--playhead': progress + '%' }}
+                aria-label="Timeline playhead"
+                disabled={exporting}
+                onChange={(event) => seekTo(event.target.value)}
+              />
+              <div className="progress-label"><span>{currentLabel}</span><span>{totalLabel} · STORYBOARD</span></div>
             </div>
             <button className="icon-button" title="Reset sequence" onClick={reset}><RotateCcw size={16} /></button>
           </div>
