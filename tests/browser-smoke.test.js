@@ -6,7 +6,7 @@ import { join, resolve } from "node:path";
 import { chromium } from "playwright";
 import { preview } from "vite";
 
-test("production app renders WebGL, switches environments, and exports a storyboard", async () => {
+test("production app renders WebGL, switches environments, and exports real files", { timeout: 240000 }, async () => {
   const server = await preview({
     configFile: resolve("vite.config.js"),
     preview: { host: "127.0.0.1", port: 4173, strictPort: true }
@@ -85,16 +85,22 @@ test("production app renders WebGL, switches environments, and exports a storybo
     const timelineScrubber = page.locator('.timeline-scrubber');
     await page.locator('.beat').nth(1).click();
     await page.waitForFunction(() => document.querySelector('.timeline-scrubber')?.value === '8');
+    await page.waitForFunction(() => Number(document.querySelector('.world-view')?.dataset.timelineSeconds) === 8);
     assert.equal(await timelineScrubber.getAttribute('aria-label'), 'Timeline playhead');
     await timelineScrubber.focus();
     await page.keyboard.press('End');
     await page.waitForFunction(() => {
       const slider = document.querySelector('.timeline-scrubber');
-      return slider?.value === '56' && document.querySelector('.scene-caption strong')?.textContent === 'The interruption is over.';
+      return slider?.value === '56' &&
+        Number(document.querySelector('.world-view')?.dataset.timelineSeconds) === 56 &&
+        document.querySelector('.scene-caption strong')?.textContent === 'The interruption is over.';
     });
     await timelineScrubber.focus();
     await page.keyboard.press('Home');
-    await page.waitForFunction(() => document.querySelector('.timeline-scrubber')?.value === '0');
+    await page.waitForFunction(() =>
+      document.querySelector('.timeline-scrubber')?.value === '0' &&
+      Number(document.querySelector('.world-view')?.dataset.timelineSeconds) === 0
+    );
 
     const scenarios = [
       ["airport", "What if an aircraft vanished at an airport?"],
@@ -135,97 +141,6 @@ test("production app renders WebGL, switches environments, and exports a storybo
     }
 
 
-    const recordingCheck = await page.evaluate(async () => {
-      const source = document.querySelector(".world-view canvas");
-      if (!source || !window.MediaRecorder) {
-        return { supported: false, reason: "The live preview canvas or MediaRecorder is unavailable" };
-      }
-
-      // Mirror production export: compose the live WebGL frame into a 2D canvas,
-      // then record that caption-capable composition canvas.
-      const composition = document.createElement("canvas");
-      composition.width = 320;
-      composition.height = 568;
-      const context = composition.getContext("2d");
-      if (!context || typeof composition.captureStream !== "function") {
-        return { supported: false, reason: "Canvas composition or captureStream is unavailable" };
-      }
-
-      const initialStream = composition.captureStream(0);
-      let stream = initialStream;
-      let captureTrack = stream.getVideoTracks()[0];
-      const manualCapture = typeof captureTrack?.requestFrame === "function";
-      if (!manualCapture) {
-        stream.getTracks().forEach((track) => track.stop());
-        stream = composition.captureStream(30);
-        captureTrack = null;
-      }
-      let animationId = 0;
-      let lastFrameAt = -Infinity;
-      const draw = (timestamp) => {
-        context.fillStyle = "#080d12";
-        context.fillRect(0, 0, composition.width, composition.height);
-        context.drawImage(source, 0, 0, composition.width, composition.height);
-        if (manualCapture && timestamp - lastFrameAt >= 1000 / 30) {
-          captureTrack.requestFrame();
-          lastFrameAt = timestamp;
-        }
-        animationId = requestAnimationFrame(draw);
-      };
-      const candidates = [
-        "video/webm;codecs=vp8",
-        "video/webm;codecs=vp9",
-        "video/webm",
-        "video/mp4;codecs=avc1.42E01E",
-        "video/mp4"
-      ];
-      const mimeType = candidates.find((type) => MediaRecorder.isTypeSupported(type));
-      if (!mimeType) {
-        cancelAnimationFrame(animationId);
-        return { supported: false, reason: "No supported video MIME type" };
-      }
-
-      let recorder;
-      try {
-        recorder = new MediaRecorder(stream, { mimeType });
-      } catch (error) {
-        cancelAnimationFrame(animationId);
-        stream.getTracks().forEach((track) => track.stop());
-        return { supported: false, reason: error.message, mimeType };
-      }
-      const chunks = [];
-      return await new Promise((resolve, reject) => {
-        recorder.ondataavailable = (event) => {
-          if (event.data?.size) chunks.push(event.data);
-        };
-        recorder.onerror = (event) => reject(event.error || new Error("MediaRecorder failed"));
-        recorder.onstop = () => {
-          cancelAnimationFrame(animationId);
-          stream.getTracks().forEach((track) => track.stop());
-          const blob = new Blob(chunks, { type: recorder.mimeType || mimeType });
-          resolve({
-            supported: true,
-            mimeType,
-            actualMimeType: recorder.mimeType,
-            chunkCount: chunks.length,
-            size: blob.size,
-            type: blob.type
-          });
-        };
-        recorder.start();
-        if (manualCapture) captureTrack.requestFrame();
-        animationId = requestAnimationFrame(draw);
-        window.setTimeout(() => {
-          if (recorder.state === "recording") recorder.stop();
-        }, 1500);
-      });
-    });
-    assert.equal(recordingCheck.supported, true, recordingCheck.reason || "browser should support canvas video recording");
-    assert.ok(
-      recordingCheck.size > 0,
-      "browser should produce a non-empty composed video: " + JSON.stringify(recordingCheck)
-    );
-
     const downloadPromise = page.waitForEvent("download");
     await page.locator(".export-button").click();
     const download = await downloadPromise;
@@ -238,6 +153,53 @@ test("production app renders WebGL, switches environments, and exports a storybo
     assert.match(storyboard, /VOXEL WHAT IF STUDIO — STORYBOARD/);
     assert.match(storyboard, /What if all rubber disappeared for 5 seconds\?/);
     assert.match(storyboard, /Duration: 00:56/);
+
+    const videoDownloadResult = page.waitForEvent("download", { timeout: 160000 })
+      .then((download) => ({ download }))
+      .catch((error) => ({ error }));
+    await page.locator(".video-export-button").click();
+    await page.waitForFunction(
+      () => {
+        const success = document.querySelector(".video-export-success")?.textContent.includes("VIDEO GENERATED");
+        const error = document.querySelector(".video-export-error")?.textContent.trim();
+        return Boolean(success || error);
+      },
+      null,
+      { timeout: 160000 }
+    );
+
+    const exportErrorLocator = page.locator(".video-export-error");
+    const exportErrorCount = await exportErrorLocator.count();
+    const exportError = exportErrorCount
+      ? (await exportErrorLocator.first().textContent())?.trim()
+      : "";
+    assert.equal(
+      exportErrorCount,
+      0,
+      "the app's video export failed: " + (exportError || "unknown export error")
+    );
+
+    const videoDownloadOutcome = await videoDownloadResult;
+    assert.ok(
+      videoDownloadOutcome.download,
+      "the app reported a successful export but did not trigger a browser download: " +
+        (videoDownloadOutcome.error?.message || "no download event")
+    );
+    const videoDownload = videoDownloadOutcome.download;
+    assert.match(
+      videoDownload.suggestedFilename(),
+      /^voxel-what-if-rubber\.(mp4|webm)$/,
+      "the app should download a correctly named MP4 or WebM file"
+    );
+    assert.equal(await page.locator(".video-export-error").count(), 0,
+      "the UI should not show an export error after a successful download");
+    assert.equal(await page.locator(".video-export-button").isDisabled(), false,
+      "the export control should be re-enabled after rendering");
+
+    const videoPath = join(downloadDirectory, videoDownload.suggestedFilename());
+    await videoDownload.saveAs(videoPath);
+    const videoBytes = await readFile(videoPath);
+    assert.ok(videoBytes.byteLength > 0, "the full app export should produce a non-empty downloadable video");
 
     assert.deepEqual(pageErrors, [], "browser should not report uncaught page errors");
   } finally {

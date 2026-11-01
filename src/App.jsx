@@ -8,6 +8,41 @@ const WorldView = lazy(() => import('./WorldView.jsx'));
 import { buildScenarioPlan } from './engine/scenarioEngine.js';
 import { ENVIRONMENT_LABELS } from './engine/environmentCatalog.js';
 
+function waitForAnimationFrames(signal, frameCount = 2) {
+  return new Promise((resolve, reject) => {
+    let remaining = frameCount;
+    let frameId = 0;
+    const cleanup = () => {
+      if (frameId) cancelAnimationFrame(frameId);
+      signal.removeEventListener('abort', onAbort);
+    };
+    const onAbort = () => {
+      cleanup();
+      reject(signal.reason instanceof Error ? signal.reason : new Error('Video export was interrupted.'));
+    };
+    const onFrame = () => {
+      frameId = 0;
+      if (signal.aborted) {
+        onAbort();
+        return;
+      }
+      remaining -= 1;
+      if (remaining <= 0) {
+        cleanup();
+        resolve();
+        return;
+      }
+      frameId = requestAnimationFrame(onFrame);
+    };
+    signal.addEventListener('abort', onAbort, { once: true });
+    if (signal.aborted) {
+      onAbort();
+      return;
+    }
+    frameId = requestAnimationFrame(onFrame);
+  });
+}
+
 export default function App() {
   const [question, setQuestion] = useState('What if all rubber disappeared for 5 seconds?');
   const [scenario, setScenario] = useState(() => buildScenarioPlan('What if all rubber disappeared for 5 seconds?'));
@@ -125,7 +160,7 @@ export default function App() {
     }
 
     setExportError('');
-    setExportMessage('Preparing 1080 × 1920 video render…');
+    setExportMessage('Checking browser video encoder…');
     setExportProgress(0);
     const previousCameraMode = cameraMode;
     setCameraMode('auto');
@@ -136,25 +171,31 @@ export default function App() {
     setActiveBeatIndex(0);
 
     try {
-      target.setOutputSize(1080, 1920);
-      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       let lastBeatIndex = -1;
       let lastProgressPercent = -1;
+      let lastUiTime = -Infinity;
       const blob = await recordCanvasVideo({
         sourceCanvas: target.canvas,
+        prepareSourceCanvas: async ({ signal }) => {
+          setExportMessage("Preparing 1080 × 1920 video render…");
+          target.setOutputSize(1080, 1920);
+          await waitForAnimationFrames(signal, 2);
+        },
         durationSeconds: scenario.durationSeconds,
         beats,
         width: 1080,
         height: 1920,
         fps: 30,
         onTime: (elapsed, beat) => {
+          const timelineTime = Math.max(0, Math.min(scenario.durationSeconds, elapsed));
+          playheadRef.current = timelineTime;
           if (beat && beat.index !== lastBeatIndex) {
             lastBeatIndex = beat.index;
             setActiveBeatIndex(beat.index);
           }
-          if (Math.abs(elapsed - playheadRef.current) >= 0.1 || elapsed >= scenario.durationSeconds) {
-            playheadRef.current = elapsed;
-            setPlayheadSeconds(elapsed);
+          if (timelineTime - lastUiTime >= (1 / 30) || timelineTime >= scenario.durationSeconds) {
+            lastUiTime = timelineTime;
+            setPlayheadSeconds(timelineTime);
           }
         },
         onProgress: (value) => {
@@ -262,7 +303,7 @@ export default function App() {
 
           <div className="viewport">
             <Suspense fallback={<div className="viewport-loading">LOADING 3D SCENE ENGINE…</div>}>
-              <WorldView scenario={scenario} beat={active} playing={playing} cameraMode={cameraMode} lighting={lighting} presenterVisible={presenterVisible} captureRef={captureRef} />
+              <WorldView scenario={scenario} beat={active} playing={playing} cameraMode={cameraMode} lighting={lighting} presenterVisible={presenterVisible} captureRef={captureRef} timelineRef={playheadRef} />
             </Suspense>
             <div className="viewport-top">
               <span className="live-pill"><span /> 3D SCENE</span>

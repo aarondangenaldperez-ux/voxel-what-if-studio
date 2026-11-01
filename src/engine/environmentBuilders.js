@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { buildCityEnvironment } from "./cityEnvironment.js";
+import { getMotionTime, smoothStep01 } from "./sceneTimeline.js";
 
 const mat = (color, options = {}) => new THREE.MeshStandardMaterial({
   color, roughness: 0.8, metalness: 0.04, ...options
@@ -71,7 +72,11 @@ function airport(scene) {
   }
   for(const z of [-3,2]) for(const x of [-.5,.5])
     cyl(plane,.19,.19,.16,[x,-.92,z],mat(0x20272b),10,[0,0,Math.PI/2]);
-  s.update=({elapsed,playing})=>{ if(!playing)return; plane.position.z=8+Math.sin(elapsed*.32)*1.2; fans.forEach((f,i)=>f.rotation.z=elapsed*8*(i?-1:1)); };
+  s.update=({elapsed=0}={})=>{
+    const time=Math.max(0,Number(elapsed)||0);
+    plane.position.z=8+Math.sin(time*.32)*1.2;
+    fans.forEach((f,i)=>{f.rotation.z=time*8*(i?-1:1);});
+  };
   return s;
 }
 
@@ -103,7 +108,15 @@ function school(scene) {
     sphere(scene,1.12,[x+.8,3.5,z],mat(0x5d9164),10);
   }
   const people=[person(scene,-6,7,0x4f7998),person(scene,-3,8,0x9a6254),person(scene,10,4,0x746da4)];
-  s.update=({elapsed,playing})=>{if(!playing)return;bus.position.x=3+Math.sin(elapsed*.32)*1.5;people.forEach((p,i)=>{const v=Math.sin(elapsed*3+i)*.25;p.arms[0].rotation.x=v;p.arms[1].rotation.x=-v;});};
+  s.update=({elapsed=0}={})=>{
+    const time=Math.max(0,Number(elapsed)||0);
+    bus.position.x=3+Math.sin(time*.32)*1.5;
+    people.forEach((p,i)=>{
+      const swing=(Math.sin(time*3+i)-Math.sin(i))*.25;
+      p.arms[0].rotation.x=swing;
+      p.arms[1].rotation.x=-swing;
+    });
+  };
   return s;
 }
 
@@ -137,19 +150,31 @@ function ocean(scene) {
   s.waterSurface=waterSurface;
   s.fishList=fishList;
   s.submarine=sub;
-  s.update=({elapsed,playing,event})=>{
-    const oceanAbsent=event==="ocean-loss"||event==="ocean-hold";
-    waterSurface.visible=!oceanAbsent;
-    if(!playing)return;
+  s.update=({elapsed=0,oceanLossStartSeconds=8,oceanReturnStartSeconds=27}={})=>{
+    const time=Math.max(0,Number(elapsed)||0);
+    const lossStart=Number.isFinite(oceanLossStartSeconds)?oceanLossStartSeconds:8;
+    const returnStart=Number.isFinite(oceanReturnStartSeconds)?oceanReturnStartSeconds:27;
+    const dropProgress=smoothStep01((time-lossStart)/1.1);
+    const returnProgress=smoothStep01((time-returnStart)/1.4);
+    const waterOpacity=time<lossStart?0.22:(time<returnStart?0.22*(1-dropProgress):0.22*returnProgress);
+    waterSurface.material.opacity=waterOpacity;
+    waterSurface.visible=waterOpacity>0.001;
+
     fishList.forEach(f=>{
-      f.position.x=f.userData.baseX+Math.sin(elapsed*.32+f.userData.phase)*2.5;
-      const targetY=oceanAbsent?.55:f.userData.baseY+Math.sin(elapsed*1.3+f.userData.phase)*.18;
-      f.position.y=THREE.MathUtils.lerp(f.position.y,targetY,oceanAbsent?.055:.075);
-      f.rotation.y=Math.sin(elapsed*.3+f.userData.phase)*.12;
+      const normalY=f.userData.baseY+(Math.sin(time*1.3+f.userData.phase)-Math.sin(f.userData.phase))*.18;
+      const targetY=time<lossStart?normalY:(time<returnStart
+        ? THREE.MathUtils.lerp(normalY,.55,dropProgress)
+        : THREE.MathUtils.lerp(.55,normalY,returnProgress));
+      f.position.x=f.userData.baseX+(Math.sin(time*.32+f.userData.phase)-Math.sin(f.userData.phase))*2.5;
+      f.position.y=targetY;
+      f.rotation.y=(Math.sin(time*.3+f.userData.phase)-Math.sin(f.userData.phase))*.12;
     });
-    const subTarget=oceanAbsent?.7:5+Math.sin(elapsed*.55)*.32;
-    sub.position.y=THREE.MathUtils.lerp(sub.position.y,subTarget,oceanAbsent?.045:.06);
-    sub.rotation.z=Math.sin(elapsed*.4)*.03;
+
+    const normalSubY=5+Math.sin(time*.55)*.32;
+    sub.position.y=time<lossStart?normalSubY:(time<returnStart
+      ? THREE.MathUtils.lerp(normalSubY,.7,dropProgress)
+      : THREE.MathUtils.lerp(.7,normalSubY,returnProgress));
+    sub.rotation.z=Math.sin(time*.4)*.03;
   };
   return s;
 }
@@ -169,7 +194,15 @@ function space(scene) {
   const ship=group(scene,[8,-5,13]), hull=mat(0xd8dde1,{metalness:.4,roughness:.3});
   box(ship,[2.3,.55,4.8],[0,0,0],hull);cone(ship,1.1,2.3,[0,0,-3.2],hull,8).rotation.x=-Math.PI/2;
   box(ship,[5.2,.18,1.7],[0,-.12,.8],mat(0x839bad));sphere(ship,.62,[0,.55,.1],mat(0x70b4c5,{roughness:.2}),12);
-  s.update=({elapsed,playing})=>{planet.rotation.y=elapsed*.035;moon.rotation.y=elapsed*.06;if(playing){sat.position.set(7+Math.cos(elapsed*.28)*3.2,Math.sin(elapsed*.28)*1.7,Math.sin(elapsed*.28)*3.2);sat.rotation.z=elapsed*.18;ship.position.y=-5+Math.sin(elapsed*.6)*.3;ship.rotation.z=Math.sin(elapsed*.35)*.04;}};
+  s.update=({elapsed=0}={})=>{
+    const time=Math.max(0,Number(elapsed)||0);
+    planet.rotation.y=time*.035;
+    moon.rotation.y=time*.06;
+    sat.position.set(7+(Math.cos(time*.28)-1)*3.2,Math.sin(time*.28)*1.7,Math.sin(time*.28)*3.2);
+    sat.rotation.z=time*.18;
+    ship.position.y=-5+Math.sin(time*.6)*.3;
+    ship.rotation.z=Math.sin(time*.35)*.04;
+  };
   return s;
 }
 
@@ -196,24 +229,15 @@ function factory(scene) {
   s.conveyorCrates=crates;
   s.conveyorRollers=rollers;
   s.robotArm=arm;
-  s.update=({elapsed,playing,event})=>{
-    if(!playing)return;
-    const halted=event==="production-stop"||event==="production-hold";
-    if(halted) {
-      if(!s.stopState) {
-        s.stopState=true;
-        s.stoppedCratePositions=crates.map((crate)=>crate.position.z);
-        s.stoppedRollerRotations=rollers.map((roller)=>roller.rotation.z);
-      }
-      crates.forEach((crate,index)=>{crate.position.z=s.stoppedCratePositions[index];});
-      rollers.forEach((roller,index)=>{roller.rotation.z=s.stoppedRollerRotations[index];});
-      arm.rotation.z=THREE.MathUtils.lerp(arm.rotation.z,0,.14);
-      return;
-    }
-    s.stopState=false;
-    crates.forEach(c=>c.position.z=-6+((elapsed*1.8+c.userData.baseZ+6)%15));
-    rollers.forEach((roller)=>{roller.rotation.z=elapsed*2.8;});
-    arm.rotation.z=Math.sin(elapsed*.8)*.24;
+  s.update=({elapsed=0,productionStopStartSeconds=8,productionResumeStartSeconds=27}={})=>{
+    const time=Math.max(0,Number(elapsed)||0);
+    const motionTime=getMotionTime(time,productionStopStartSeconds,productionResumeStartSeconds);
+    crates.forEach(crate=>{
+      const offset=(motionTime*1.8+crate.userData.baseZ+6)%15;
+      crate.position.z=-6+offset;
+    });
+    rollers.forEach(roller=>{roller.rotation.z=motionTime*2.8;});
+    arm.rotation.z=Math.sin(motionTime*.8)*.24;
   };
   return s;
 }
@@ -227,7 +251,11 @@ function nature(scene) {
   const deer=group(scene,[-7,0,9]), fur=mat(0x98714f);sphere(deer,.55,[0,1.25,0],fur,10).scale.set(1.35,.8,.8);sphere(deer,.38,[.8,1.55,0],fur,10);
   for(const x of [-.35,.35])cyl(deer,.08,.12,.8,[x,.5,0],fur,6);
   for(const x of [-1,1])cone(deer,.07,.65,[.85+x*.2,2.1,0],mat(0x8e907e),5);
-  s.update=({elapsed,playing})=>{if(playing){deer.position.x=-7+Math.sin(elapsed*.35)*1.5;deer.rotation.y=Math.sin(elapsed*.35)*.12;}};
+  s.update=({elapsed=0}={})=>{
+    const time=Math.max(0,Number(elapsed)||0);
+    deer.position.x=-7+Math.sin(time*.35)*1.5;
+    deer.rotation.y=Math.sin(time*.35)*.12;
+  };
   return s;
 }
 
