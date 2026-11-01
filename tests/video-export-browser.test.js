@@ -78,21 +78,33 @@ test("production video export records a playable clip through recordCanvasVideo"
       const visitedBeats = new Set();
       const times = [];
       const progress = [];
+      const renderedCaptions = new Set();
+      const originalFillText = CanvasRenderingContext2D.prototype.fillText;
+      const expectedCaptions = beats.map((beat) => beat.caption);
+      CanvasRenderingContext2D.prototype.fillText = function (text, ...args) {
+        if (expectedCaptions.includes(String(text))) renderedCaptions.add(String(text));
+        return originalFillText.call(this, text, ...args);
+      };
 
-      const blob = await recordCanvasVideo({
-        sourceCanvas,
-        durationSeconds,
-        beats,
-        width: 320,
-        height: 568,
-        fps: 15,
-        MediaRecorderClass: TrackingMediaRecorder,
-        onTime: (elapsed, beat) => {
-          times.push(elapsed);
-          if (beat) visitedBeats.add(beat.index);
-        },
-        onProgress: (value) => progress.push(value)
-      });
+      let blob;
+      try {
+        blob = await recordCanvasVideo({
+          sourceCanvas,
+          durationSeconds,
+          beats,
+          width: 320,
+          height: 568,
+          fps: 15,
+          MediaRecorderClass: TrackingMediaRecorder,
+          onTime: (elapsed, beat) => {
+            times.push(elapsed);
+            if (beat) visitedBeats.add(beat.index);
+          },
+          onProgress: (value) => progress.push(value)
+        });
+      } finally {
+        CanvasRenderingContext2D.prototype.fillText = originalFillText;
+      }
 
       const blobUrl = URL.createObjectURL(blob);
       const video = document.createElement("video");
@@ -121,6 +133,7 @@ test("production video export records a playable clip through recordCanvasVideo"
         durationSeconds,
         metadata,
         visitedBeats: [...visitedBeats].sort(),
+        renderedCaptions: [...renderedCaptions].sort(),
         firstTime: times[0],
         lastTime: times.at(-1),
         finalProgress: progress.at(-1),
@@ -139,6 +152,9 @@ test("production video export records a playable clip through recordCanvasVideo"
     assert.equal(result.metadata.height, 568);
     assert.deepEqual(result.visitedBeats, [0, 1, 2],
       "the export timeline should visit all caption beats in order");
+    assert.deepEqual(result.renderedCaptions.sort(),
+      ["OPENING FRAME", "RESOLUTION FRAME", "SCENARIO EVENT"],
+      "the production compositor should draw every storyboard caption");
     assert.equal(result.firstTime, 0);
     assert.ok(result.lastTime >= result.durationSeconds - (1 / 15),
       "the final callback should reach the end of the requested timeline");
