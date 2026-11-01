@@ -207,7 +207,8 @@ export async function recordCanvasVideo({
   fps = 30,
   onTime = () => {},
   onProgress = () => {},
-  MediaRecorderClass = globalThis.MediaRecorder
+  MediaRecorderClass = globalThis.MediaRecorder,
+  prepareSourceCanvas = async () => {}
 }) {
   if (!sourceCanvas || typeof sourceCanvas.captureStream !== "function") {
     throw new Error("The 3D preview canvas is not ready for video capture.");
@@ -249,6 +250,10 @@ export async function recordCanvasVideo({
       probeCanvasEncoder,
       { signal: abortController.signal }
     );
+    if (abortController.signal.aborted) throw interruptionError;
+
+    // Keep expensive source-renderer resizing out of the short codec probe window.
+    await prepareSourceCanvas();
     if (abortController.signal.aborted) throw interruptionError;
 
     const output = document.createElement("canvas");
