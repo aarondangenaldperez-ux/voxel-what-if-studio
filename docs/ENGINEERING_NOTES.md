@@ -67,6 +67,22 @@ The pure timeline, city-actor, environment-builder, and presenter tests establis
 - [Three.js Object3D documentation](https://threejs.org/docs/pages/Object3D.html)
 - [Three.js matrix transformations manual](https://threejs.org/manual/pages/matrix-transformations.html)
 
+## 2026-11-02 — Full-app encoder probe ordering
+
+### Finding
+
+The standalone exporter integration fixture passed, but the full application export failed during codec probing. The UI was calling `target.setOutputSize(1080, 1920)` before entering `recordCanvasVideo()`. That made the continuously running Three.js renderer switch to a large software-rendered WebGL buffer while the exporter was performing its short MediaRecorder capability probes. The standalone fixture did not run that expensive full-resolution scene render, which explained the difference between the two test paths.
+
+### Change made
+
+- Added a `prepareSourceCanvas` callback to `recordCanvasVideo()`, invoked only after a working MediaRecorder format has been selected and before the final composition canvas begins capturing.
+- Moved the app's 1080×1920 renderer resize and two-frame settling step into that callback. Encoder probing now happens while the interactive preview remains at its normal render size.
+- Kept the exporter's existing visibility-change cancellation around both probing and source preparation.
+- Extended the browser exporter integration test to assert that source preparation occurs after the probe recorders have stopped and released their tracks.
+
+### Verification boundary
+
+The ordering is covered by the function-level Chromium integration test. The full app-button export test must pass on the updated PR head to establish that the original CI failure is resolved. This does not replace real Android/iOS testing or long-duration device profiling.
 ## 2026-11-01 — Production video-export integration test
 
 ### Finding
