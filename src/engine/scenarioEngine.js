@@ -45,7 +45,7 @@ const RULES = [
       ["00:27", "The blackout continues", "The city remains dim while daylight and the street environment remain visible.", "The grid is still offline.", "countdown", "aftermath", 21],
       ["00:48", "Power is restored", "Streetlights, windows and traffic signals illuminate again.", "Electricity returns to the city.", "restored", "resolve", 8]
     ]
-  }
+  },
   {
     id: "factory",
     pattern: /(?:factory|assembly line|production line).{0,35}(?:stop|stops|stopped|halt|halts|halted|shut down|shutdown)|(?:stop|stops|stopped|halt|halts|halted|shut down|shutdown).{0,35}(?:factory|assembly line|production line)/i,

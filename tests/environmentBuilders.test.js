@@ -51,7 +51,7 @@ test('factory production-stop event freezes conveyor crates and rollers, then re
   built.update({ elapsed: 5, playing: true, event: 'production-stop' });
   const stoppedPositions = built.conveyorCrates.map((crate) => crate.position.z);
   const stoppedRotations = built.conveyorRollers.map((roller) => roller.rotation.z);
-  assert.notDeepEqual(stoppedPositions, positionsBeforeStop);
+  assert.deepEqual(stoppedPositions, positionsBeforeStop);
 
   built.update({ elapsed: 12, playing: true, event: 'production-hold' });
   assert.deepEqual(built.conveyorCrates.map((crate) => crate.position.z), stoppedPositions);
