@@ -67,3 +67,21 @@ The pure timeline, city-actor, environment-builder, and presenter tests establis
 - [Three.js Object3D documentation](https://threejs.org/docs/pages/Object3D.html)
 - [Three.js matrix transformations manual](https://threejs.org/manual/pages/matrix-transformations.html)
 
+## 2026-11-01 — Production video-export integration test
+
+### Finding
+
+The earlier browser smoke test recorded a hand-written canvas/MediaRecorder sample that only resembled the production exporter. It could prove that Chromium supported basic canvas recording, but it did not execute `recordCanvasVideo()`, verify the project's caption compositor, or check that the exporter's own capture tracks were stopped.
+
+### Change made
+
+- Added `tests/video-export-browser.test.js`, which loads and calls the actual `recordCanvasVideo()` module in Chromium.
+- The test uses a short 1.5-second fixture at 320×568 to keep CI practical while exercising the real format-probe, composition-canvas, caption, MediaRecorder, timing, progress, and cleanup code paths.
+- It decodes the resulting Blob with a browser video element and verifies non-empty data, video MIME type, duration bounds, dimensions, all three storyboard beats, all three rendered captions, final timeline/progress callbacks, and stopped capture tracks.
+- Removed the previous duplicated manual MediaRecorder sample from `tests/browser-smoke.test.js`.
+- Updated `npm run test:browser` to run the UI smoke test and exporter integration test sequentially.
+
+### Verification boundary
+
+This test exercises the real export function, but with a short low-resolution fixture. It does not yet click the app's full 56-second export button or prove long-duration 1080×1920 performance on Android/iOS hardware. Those remain separate integration and device-QA tasks.
+
