@@ -115,9 +115,9 @@ export default function WorldView({ scenario, beat, playing }) {
       scene.fog.color.lerp(fogTarget, 0.025);
 
       const rubberAbsent = currentScenario && currentScenario.id === 'rubber' &&
-        ['rubber-loss', 'traffic-paused', 'countdown'].includes(event);
+        event === 'rubber-loss';
       const gravityAbsent = currentScenario && currentScenario.id === 'gravity' &&
-        ['gravity-loss', 'weightless', 'countdown'].includes(event);
+        event === 'gravity-loss';
       const powerAbsent = currentScenario && currentScenario.id === 'electricity' &&
         ['power-loss', 'blackout', 'countdown'].includes(event);
 
@@ -126,7 +126,8 @@ export default function WorldView({ scenario, beat, playing }) {
         car.wheels.forEach((wheel) => { wheel.visible = !rubberAbsent; });
         const targetY = gravityAbsent ? 0.95 + (index * 0.18) : (rubberAbsent ? -0.13 : 0);
         car.root.position.y = THREE.MathUtils.lerp(car.root.position.y, targetY, 0.075);
-        const drift = isPlaying && !rubberAbsent ? Math.sin(elapsed * 0.8 + index * 1.7) * 0.22 : 0;
+        const trafficPaused = currentScenario && currentScenario.id === 'rubber' && event === 'traffic-paused';
+        const drift = isPlaying && !rubberAbsent && !trafficPaused ? Math.sin(elapsed * 0.8 + index * 1.7) * 0.22 : 0;
         car.root.position.z = base.z + drift;
         car.root.rotation.z = rubberAbsent && isPlaying
           ? Math.sin(elapsed * 8 + index) * 0.018
