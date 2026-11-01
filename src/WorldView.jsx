@@ -3,6 +3,13 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { buildEnvironment } from './engine/environmentBuilders.js';
 import { buildVoxelPresenter } from './engine/voxelPresenter.js';
+import {
+  getBeatWindow,
+  getEventEnvelope,
+  getMotionTime,
+  getTimelinePosition,
+  smoothStep01
+} from './engine/sceneTimeline.js';
 
 const CAMERA_SHOTS = {
   establish: { position: [22, 19, 25], target: [0, 1, 0] },
@@ -100,7 +107,11 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
     const presenter = buildVoxelPresenter(scene, { position: [0, 0, 9], scale: 1.05 });
     const cameraPosition = new THREE.Vector3();
     const cameraTarget = new THREE.Vector3();
+    const cameraFromPosition = new THREE.Vector3();
+    const cameraFromTarget = new THREE.Vector3();
+    const skyFrom = new THREE.Color();
     const skyTarget = new THREE.Color();
+    const fogFrom = new THREE.Color();
     const fogTarget = new THREE.Color();
     let frameId = 0;
     let exportSize = null;
@@ -139,104 +150,128 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
       frameId = requestAnimationFrame(animate);
       const current = state.current;
       const elapsed = Math.max(0, Number(current.timelineRef?.current) || 0);
-      element.dataset.timelineSeconds = elapsed.toFixed(3);
       const currentScenario = current.scenario;
-      const currentBeat = current.beat || {};
+      const beats = currentScenario?.beats || [];
+      const timeline = getTimelinePosition(beats, elapsed);
+      const currentBeat = timeline.beat || current.beat || {};
+      const previousBeat = beats[timeline.index - 1] || currentBeat;
       const event = currentBeat.event || 'normal';
-      const isPlaying = current.playing;
+      const transition = smoothStep01(timeline.elapsedInBeat / 0.85);
+
+      element.dataset.timelineSeconds = elapsed.toFixed(3);
+      element.dataset.activeEvent = event;
       const lightScale = THREE.MathUtils.clamp(Number(current.lighting) || 100, 30, 160) / 100;
-      hemisphereLight.intensity = THREE.MathUtils.lerp(hemisphereLight.intensity, 1.9 * lightScale, 0.08);
-      keyLight.intensity = THREE.MathUtils.lerp(keyLight.intensity, 3.0 * lightScale, 0.08);
-      fillLight.intensity = THREE.MathUtils.lerp(fillLight.intensity, 0.8 * lightScale, 0.08);
+      hemisphereLight.intensity = 1.9 * lightScale;
+      keyLight.intensity = 3.0 * lightScale;
+      fillLight.intensity = 0.8 * lightScale;
       element.dataset.lighting = String(Math.round(Number(current.lighting) || 100));
       element.dataset.keyLightIntensity = keyLight.intensity.toFixed(2);
+
       const manualCamera = current.cameraMode === 'orbit';
+      controls.enableDamping = manualCamera;
       controls.enabled = manualCamera && !exportSize;
       element.dataset.cameraMode = manualCamera ? 'orbit' : 'auto';
       element.dataset.orbitControls = String(controls.enabled);
       if (!manualCamera) {
         const shotLibrary = currentScenario?.id === 'rubber' ? RUBBER_CAMERA_SHOTS : CAMERA_SHOTS;
+        const previousShot = shotLibrary[previousBeat.camera] || shotLibrary.establish;
         const cameraShot = shotLibrary[currentBeat.camera] || shotLibrary.establish;
-        cameraPosition.set(cameraShot.position[0], cameraShot.position[1], cameraShot.position[2]);
-        cameraTarget.set(cameraShot.target[0], cameraShot.target[1], cameraShot.target[2]);
-        camera.position.lerp(cameraPosition, 0.035);
-        controls.target.lerp(cameraTarget, 0.035);
+        cameraFromPosition.fromArray(previousShot.position);
+        cameraFromTarget.fromArray(previousShot.target);
+        cameraPosition.fromArray(cameraShot.position);
+        cameraTarget.fromArray(cameraShot.target);
+        camera.position.copy(cameraFromPosition).lerp(cameraPosition, transition);
+        controls.target.copy(cameraFromTarget).lerp(cameraTarget, transition);
       }
 
       const palette = ENVIRONMENT_MOODS[currentScenario?.environment] || MOODS;
+      const previousMood = palette[previousBeat.mood] || palette.calm || MOODS.calm;
       const mood = palette[currentBeat.mood] || palette.calm || MOODS.calm;
+      skyFrom.setHex(previousMood.sky);
       skyTarget.setHex(mood.sky);
+      fogFrom.setHex(previousMood.fog);
       fogTarget.setHex(mood.fog);
-      scene.background.lerp(skyTarget, 0.025);
-      if (scene.fog) scene.fog.color.lerp(fogTarget, 0.025);
+      if (scene.background?.isColor) {
+        scene.background.copy(skyFrom).lerp(skyTarget, transition);
+      }
+      if (scene.fog) scene.fog.color.copy(fogFrom).lerp(fogTarget, transition);
 
-      const rubberAbsent = currentScenario && currentScenario.id === 'rubber' &&
-        event === 'rubber-loss';
-      const gravityAbsent = currentScenario && currentScenario.id === 'gravity' &&
-        event === 'gravity-loss';
-      const powerAbsent = currentScenario && currentScenario.id === 'electricity' &&
-        ['power-loss', 'blackout', 'countdown'].includes(event);
+      const rubberWindow = getBeatWindow(beats, 'rubber-loss');
+      const gravityWindow = getBeatWindow(beats, 'gravity-loss');
+      const powerWindow = getBeatWindow(beats, 'power-loss');
+      const powerRestoreWindow = getBeatWindow(beats, 'restored');
+      const rubberIntensity = currentScenario?.id === 'rubber' && rubberWindow
+        ? getEventEnvelope(elapsed, rubberWindow.startSeconds, rubberWindow.endSeconds, 0.28)
+        : 0;
+      const gravityIntensity = currentScenario?.id === 'gravity' && gravityWindow
+        ? getEventEnvelope(elapsed, gravityWindow.startSeconds, gravityWindow.endSeconds, 0.35)
+        : 0;
+      const powerIntensity = currentScenario?.id === 'electricity' && powerWindow && powerRestoreWindow
+        ? getEventEnvelope(elapsed, powerWindow.startSeconds, powerRestoreWindow.startSeconds, 0.45)
+        : 0;
 
-      city.update?.({ elapsed, playing: isPlaying, event, scenario: currentScenario, beat: currentBeat });
+      const productionStopWindow = getBeatWindow(beats, 'production-stop');
+      const productionResumeWindow = getBeatWindow(beats, 'production-resume');
+      const oceanLossWindow = getBeatWindow(beats, 'ocean-loss');
+      const oceanReturnWindow = getBeatWindow(beats, 'ocean-return');
+      const rubberRecoveryWindow = getBeatWindow(beats, 'recovery');
+
+      city.update?.({
+        elapsed,
+        event,
+        scenario: currentScenario,
+        beat: currentBeat,
+        productionStopStartSeconds: productionStopWindow?.startSeconds ?? 8,
+        productionResumeStartSeconds: productionResumeWindow?.startSeconds ?? 27,
+        oceanLossStartSeconds: oceanLossWindow?.startSeconds ?? 8,
+        oceanReturnStartSeconds: oceanReturnWindow?.startSeconds ?? 27
+      });
+
       presenter.root.visible = current.presenterVisible !== false;
-      if (presenter.root.visible) presenter.update({ elapsed, playing: isPlaying, beat: currentBeat });
+      presenter.update({ elapsed, beat: currentBeat });
       element.dataset.presenterVisible = String(presenter.root.visible);
-      element.dataset.presenterSpeaking = String(isPlaying);
+      element.dataset.presenterSpeaking = String(elapsed > 0.001);
+
+      const rubberMotionTime = currentScenario?.id === 'rubber'
+        ? getMotionTime(elapsed, rubberWindow?.startSeconds, rubberRecoveryWindow?.startSeconds)
+        : elapsed;
 
       city.cars.forEach((car, index) => {
         const base = car.root.userData.basePosition;
+        const wheelScale = 1 - (0.999 * rubberIntensity);
         car.wheels.forEach((wheel) => {
           wheel.visible = true;
-          const wheelScale = rubberAbsent ? 0.001 : 1;
-          wheel.scale.setScalar(THREE.MathUtils.lerp(wheel.scale.x, wheelScale, 0.18));
+          wheel.scale.setScalar(wheelScale);
         });
-        const targetY = gravityAbsent ? 0.95 + (index * 0.18) : (rubberAbsent ? -0.22 : 0);
-        car.root.position.y = THREE.MathUtils.lerp(car.root.position.y, targetY, 0.075);
-        const trafficPaused = currentScenario && currentScenario.id === 'rubber' && event === 'traffic-paused';
-        const drift = isPlaying && !rubberAbsent && !trafficPaused ? Math.sin(elapsed * 0.8 + index * 1.7) * 0.22 : 0;
-        car.root.position.z = base.z + drift;
-        const tirelessPitch = rubberAbsent ? (index % 2 === 0 ? -0.055 : 0.055) : 0;
-        car.root.rotation.x = THREE.MathUtils.lerp(car.root.rotation.x, tirelessPitch, 0.09);
-        car.root.rotation.z = rubberAbsent && isPlaying
-          ? Math.sin(elapsed * 6 + index) * 0.045
-          : THREE.MathUtils.lerp(car.root.rotation.z, 0, 0.08);
+        const gravityFloat = 0.95 + (index * 0.18) + Math.sin(elapsed * 2.1 + index) * 0.2;
+        car.root.position.y = (-0.22 * rubberIntensity) + (gravityFloat * gravityIntensity);
+        car.root.position.z = base.z + Math.sin(rubberMotionTime * 0.8 + index * 1.7) * 0.22;
+        car.root.rotation.x = (index % 2 === 0 ? -0.055 : 0.055) * rubberIntensity;
+        car.root.rotation.z = Math.sin(elapsed * 6 + index) * 0.045 * rubberIntensity;
       });
 
       city.pedestrians.forEach((person, index) => {
-        const swing = isPlaying ? Math.sin(elapsed * 4.2 + index * 1.4) * 0.34 : 0;
-        person.arms[0].rotation.x = gravityAbsent ? -0.48 : swing;
-        person.arms[1].rotation.x = gravityAbsent ? 0.48 : -swing;
-        person.legs[0].rotation.x = gravityAbsent ? 0.12 : -swing * 0.8;
-        person.legs[1].rotation.x = gravityAbsent ? -0.12 : swing * 0.8;
-        const flinch = rubberAbsent ? 0.82 : 0;
-        person.arms[0].rotation.z = THREE.MathUtils.lerp(person.arms[0].rotation.z, -flinch, 0.12);
-        person.arms[1].rotation.z = THREE.MathUtils.lerp(person.arms[1].rotation.z, flinch, 0.12);
-        const lean = rubberAbsent ? (index % 2 === 0 ? 0.045 : -0.045) : 0;
-        person.root.rotation.z = THREE.MathUtils.lerp(person.root.rotation.z, lean, 0.1);
-        const floatHeight = gravityAbsent ? 0.95 + Math.sin(elapsed * 2.1 + index) * 0.2 : 0;
-        person.root.position.y = THREE.MathUtils.lerp(person.root.position.y, floatHeight, 0.06);
+        const swing = Math.sin(elapsed * 4.2 + index * 1.4) * 0.34;
+        person.arms[0].rotation.x = THREE.MathUtils.lerp(swing, -0.48, gravityIntensity);
+        person.arms[1].rotation.x = THREE.MathUtils.lerp(-swing, 0.48, gravityIntensity);
+        person.legs[0].rotation.x = THREE.MathUtils.lerp(-swing * 0.8, 0.12, gravityIntensity);
+        person.legs[1].rotation.x = THREE.MathUtils.lerp(swing * 0.8, -0.12, gravityIntensity);
+        const flinch = 0.82 * rubberIntensity;
+        person.arms[0].rotation.z = -flinch;
+        person.arms[1].rotation.z = flinch;
+        person.root.rotation.z = (index % 2 === 0 ? 0.045 : -0.045) * rubberIntensity;
+        person.root.position.y = gravityIntensity * (0.95 + Math.sin(elapsed * 2.1 + index) * 0.2);
       });
 
-      if (city.windowMaterial) city.windowMaterial.emissiveIntensity = THREE.MathUtils.lerp(
-        city.windowMaterial.emissiveIntensity,
-        powerAbsent ? 0.015 : 0.45,
-        0.08
-      );
+      if (city.windowMaterial) {
+        city.windowMaterial.emissiveIntensity = THREE.MathUtils.lerp(0.45, 0.015, powerIntensity);
+      }
       city.streetlights.forEach((lamp) => {
-        const target = powerAbsent ? 0 : 2.1;
-        lamp.light.intensity = THREE.MathUtils.lerp(lamp.light.intensity, target, 0.08);
-        lamp.bulb.material.emissiveIntensity = THREE.MathUtils.lerp(
-          lamp.bulb.material.emissiveIntensity,
-          powerAbsent ? 0.02 : 1.6,
-          0.08
-        );
+        lamp.light.intensity = THREE.MathUtils.lerp(2.1, 0, powerIntensity);
+        lamp.bulb.material.emissiveIntensity = THREE.MathUtils.lerp(1.6, 0.02, powerIntensity);
       });
       city.signalLights.forEach((material) => {
-        material.emissiveIntensity = THREE.MathUtils.lerp(
-          material.emissiveIntensity,
-          powerAbsent ? 0.015 : 1.4,
-          0.08
-        );
+        material.emissiveIntensity = THREE.MathUtils.lerp(1.4, 0.015, powerIntensity);
       });
 
       controls.update();
