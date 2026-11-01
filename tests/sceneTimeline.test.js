@@ -83,6 +83,19 @@ const electricityBeats = [
   { event: "restored", durationSeconds: 8 }
 ];
 
+test("city actors retain the authored neutral pose at timeline zero", () => {
+  const pose = getCityActorPoseAtTime({
+    elapsedSeconds: 0,
+    scenarioId: "rubber",
+    beats: rubberBeats,
+    actorIndex: 1
+  });
+  assert.equal(pose.wheelScale, 1);
+  assert.equal(pose.carPositionZOffset, 0);
+  assert.equal(pose.pedestrianArmRotationX[0], 0);
+  assert.equal(pose.pedestrianArmRotationX[1], 0);
+});
+
 test("city scenario poses are reconstructed from time rather than previous transforms", () => {
   const atTen = getCityActorPoseAtTime({
     elapsedSeconds: 10,
