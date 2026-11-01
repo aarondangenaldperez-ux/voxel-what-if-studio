@@ -24,3 +24,5 @@
 .scene-caption small{color:#ffe0a0;font:8px 'DM Mono';letter-spacing:.08em}
 .limitation-note{margin:12px 0 0;color:#8b999d;font-size:10px;line-height:1.5}
 @media(max-width:650px){.viewport{width:min(100%,390px)!important;max-height:none;aspect-ratio:9/16;height:auto!important;min-height:0!important}.scene-caption{bottom:50px}.scene-caption strong{font-size:18px}}
+
+.viewport-loading{position:absolute;inset:0;display:grid;place-items:center;background:#111c24;color:#9bd8c7;font:10px 'DM Mono';letter-spacing:.1em}
