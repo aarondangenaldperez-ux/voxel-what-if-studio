@@ -161,6 +161,80 @@ test("production video export records a playable clip through recordCanvasVideo"
     assert.equal(result.finalProgress, 1);
     assert.equal(result.allCaptureTracksStopped, true,
       "probe and export capture tracks should be stopped after recording");
+
+    const interruption = await page.evaluate(async () => {
+      const { recordCanvasVideo } = await import("/voxel-what-if-studio/src/engine/videoExport.js");
+      const originalDescriptor = Object.getOwnPropertyDescriptor(document, "visibilityState");
+      let simulatedVisibilityState = "visible";
+      Object.defineProperty(document, "visibilityState", {
+        configurable: true,
+        get: () => simulatedVisibilityState
+      });
+
+      const streams = [];
+      class HidingMediaRecorder extends MediaRecorder {
+        constructor(stream, options) {
+          super(stream, options);
+          streams.push(stream);
+        }
+        static isTypeSupported(type) {
+          return MediaRecorder.isTypeSupported(type);
+        }
+        start(timeslice) {
+          super.start(timeslice);
+          if (timeslice === 1000) {
+            window.setTimeout(() => {
+              simulatedVisibilityState = "hidden";
+              document.dispatchEvent(new Event("visibilitychange"));
+            }, 50);
+          }
+        }
+      }
+
+      const source = document.createElement("canvas");
+      source.width = 160;
+      source.height = 284;
+      const context = source.getContext("2d");
+      context.fillStyle = "#334455";
+      context.fillRect(0, 0, source.width, source.height);
+
+      let message = "";
+      try {
+        await recordCanvasVideo({
+          sourceCanvas: source,
+          durationSeconds: 5,
+          beats: [{ index: 0, durationSeconds: 5, caption: "INTERRUPTION TEST" }],
+          width: 160,
+          height: 284,
+          fps: 15,
+          MediaRecorderClass: HidingMediaRecorder
+        });
+      } catch (error) {
+        message = error.message;
+      } finally {
+        simulatedVisibilityState = "visible";
+        if (originalDescriptor) {
+          Object.defineProperty(document, "visibilityState", originalDescriptor);
+        } else {
+          delete document.visibilityState;
+        }
+      }
+
+      return {
+        message,
+        recorderCount: streams.length,
+        allCaptureTracksStopped: streams.length > 0 && streams.every((stream) =>
+          stream.getTracks().every((track) => track.readyState === "ended")
+        )
+      };
+    });
+    assert.match(interruption.message, /tab became hidden/i,
+      "hiding the browser tab should return a specific retry message");
+    assert.ok(interruption.recorderCount > 0,
+      "the test should start the real codec probe and export recorder");
+    assert.equal(interruption.allCaptureTracksStopped, true,
+      "all probe and recording tracks should stop after interruption");
+
     assert.deepEqual(pageErrors, [], "the browser should not report uncaught page errors");
   } finally {
     await browser?.close();
