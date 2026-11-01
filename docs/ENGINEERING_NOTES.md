@@ -24,12 +24,12 @@ This allowed the storyboard playhead, 3D animation, and exported captions to dri
 
 This first phase aligned the scene's time input with the application playhead. The follow-up timestamp refactor now assigns procedural actor, environment, presenter, lighting, mood, and automatic-camera transforms from the current absolute timeline time and beat-local transition progress. Stateful factory stop snapshots and ocean interpolation history were removed. Manual OrbitControls remain intentionally driven by user input, and identical pixels across different GPU/browser implementations are not guaranteed.
 
-Video export remains real-time browser capture. It is not fixed-frame, offline rendering. The Canvas capture `requestFrame()` method allows manual capture requests when supported, but MDN marks that method as limited availability; the existing automatic-rate `captureStream(fps)` fallback is therefore retained. Browser animation callbacks may be paused or throttled while a tab is hidden, so exports still require the tab to remain visible.
+Video export remains real-time browser capture. It is not fixed-frame, offline rendering. The Canvas capture `requestFrame()` method allows manual capture requests when supported, but MDN marks that method as limited availability; the existing automatic-rate `captureStream(fps)` fallback is therefore retained. Browser animation callbacks may be paused or throttled while a tab is hidden. The exporter now listens for `visibilitychange`, cancels codec probing or recording, stops active capture tracks, and returns a retry message rather than waiting indefinitely. A successful export still requires the Voxel tab to remain in the foreground.
 
 ### Follow-up priorities
 
 1. Exercise the actual production video-export button in an end-to-end browser test, including file type, duration, caption boundaries, and non-empty output.
-2. Add a clear interruption/error path when the tab becomes hidden during export.
+2. Exercise the app's full 56-second export button and download flow; the current function-level integration fixture is intentionally short.
 3. Test long exports and real mobile browsers; desktop headless Chromium is not a substitute for Android/iOS device QA.
 4. Profile draw calls, shadow-map cost, geometry/material counts, and frame time on a mid-range Android device.
 
@@ -84,4 +84,25 @@ The earlier browser smoke test recorded a hand-written canvas/MediaRecorder samp
 ### Verification boundary
 
 This test exercises the real export function, but with a short low-resolution fixture. It does not yet click the app's full 56-second export button or prove long-duration 1080×1920 performance on Android/iOS hardware. Those remain separate integration and device-QA tasks.
+## 2026-11-01 — Export interruption when the tab is hidden
+
+### Finding
+
+The Page Visibility API reports when a tab becomes hidden. Browsers commonly throttle or pause animation-frame callbacks in hidden tabs, which can stall a real-time canvas capture loop.
+
+### Change made
+
+- Added a document visibility listener before encoder probing begins.
+- Passed an abort signal through encoder selection and its short MediaRecorder capability probes.
+- If the document becomes hidden during probing or recording, the exporter stops the recorder and all capture tracks, removes its listeners, and rejects with an actionable foreground-tab retry message.
+- Kept the automatic-rate `captureStream(fps)` fallback for browsers that do not expose manual `requestFrame()`.
+
+### Verification
+
+A unit test checks that encoder selection propagates cancellation. The Chromium integration test simulates a hidden document while the production recorder is active, verifies the clear interruption message, and confirms that probe and export tracks are stopped.
+
+### Reference
+
+- [MDN: Page Visibility API](https://developer.mozilla.org/en-US/docs/Web/API/Page_Visibility_API)
+- [MDN: Document visibilitychange event](https://developer.mozilla.org/en-US/docs/Web/API/Document/visibilitychange_event)
 
