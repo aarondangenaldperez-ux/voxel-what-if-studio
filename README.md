@@ -20,6 +20,7 @@ A browser-based, vertical-first 3D scenario preview and storyboard prototype bui
 - Lazy-loaded 3D engine to reduce the initial application bundle
 - Mobile-aware WebGL quality cap (maximum 1.25 device pixel ratio on compact viewports) to reduce GPU load, plus an in-scene recovery notice if the browser loses the WebGL context
 - Scenario classification tests plus scene-construction/animation smoke tests for all six added environments
+- Chromium integration test calls the actual `recordCanvasVideo()` exporter and validates a playable encoded clip, beat timing, completion progress, and capture-track cleanup
 - Bounded GitHub Pages deployment workflow that runs tests before publishing
 
 ## Run locally
