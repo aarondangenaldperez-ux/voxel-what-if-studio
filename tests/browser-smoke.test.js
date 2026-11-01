@@ -168,9 +168,13 @@ test("production app renders WebGL, switches environments, and exports real file
       { timeout: 160000 }
     );
 
-    const exportError = (await page.locator(".video-export-error").textContent())?.trim();
+    const exportErrorLocator = page.locator(".video-export-error");
+    const exportErrorCount = await exportErrorLocator.count();
+    const exportError = exportErrorCount
+      ? (await exportErrorLocator.first().textContent())?.trim()
+      : "";
     assert.equal(
-      await page.locator(".video-export-error").count(),
+      exportErrorCount,
       0,
       "the app's video export failed: " + (exportError || "unknown export error")
     );
