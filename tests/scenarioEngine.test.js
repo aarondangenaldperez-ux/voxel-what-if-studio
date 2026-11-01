@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildScenarioPlan } from '../src/engine/scenarioEngine.js';
+import { detectEnvironment } from '../src/engine/environmentCatalog.js';
 
 function assertFiveSecondInterruption(plan, eventName) {
   assert.equal(plan.eventDurationSeconds, 5);
@@ -43,4 +44,20 @@ test('unmapped prompts are labelled honestly instead of inventing effects', () =
   assert.equal(plan.supported, false);
   assert.equal(plan.beats[1].event, 'unmapped');
   assert.equal(plan.durationSeconds, 56);
+});
+
+test('environment classifier selects distinct production environments', () => {
+  assert.equal(detectEnvironment('What if an airport lost all power?'), 'airport');
+  assert.equal(detectEnvironment('What if a school vanished?'), 'school');
+  assert.equal(detectEnvironment('What if the ocean disappeared?'), 'ocean');
+  assert.equal(detectEnvironment('What if the Moon vanished?'), 'space');
+  assert.equal(detectEnvironment('What if a factory stopped?'), 'factory');
+  assert.equal(detectEnvironment('What if a forest vanished?'), 'nature');
+});
+
+test('mapped city physics is not falsely claimed for a different environment', () => {
+  const plan = buildScenarioPlan('What if rubber disappeared at an airport?');
+  assert.equal(plan.environment, 'airport');
+  assert.equal(plan.supported, false);
+  assert.equal(plan.id, 'exploration');
 });

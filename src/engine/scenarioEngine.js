@@ -1,3 +1,5 @@
+import { detectEnvironment } from "./environmentCatalog.js";
+
 const RULES = [
   {
     id: "rubber",
@@ -73,7 +75,8 @@ function buildBeats(rows) {
 export function buildScenarioPlan(prompt) {
   const text = String(prompt || "").trim();
   const rule = RULES.find(function (item) { return item.pattern.test(text); });
-  const selected = rule || {
+  const detectedEnvironment = detectEnvironment(text);
+  const selected = (rule && detectedEnvironment === "urban") ? rule : {
     id: "exploration",
     label: "SCENARIO EXPLORATION",
     phenomenon: "Unmapped What If scenario",
@@ -91,7 +94,7 @@ export function buildScenarioPlan(prompt) {
     prompt: text,
     label: selected.label,
     phenomenon: selected.phenomenon,
-    environment: selected.environment,
+    environment: detectedEnvironment,
     supported: selected.supported,
     durationSeconds: durationSeconds,
     eventDurationSeconds: selected.id === "rubber" || selected.id === "gravity" ? 5 : null,

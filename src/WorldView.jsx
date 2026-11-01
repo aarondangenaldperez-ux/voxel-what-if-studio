@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { buildCityEnvironment } from './engine/cityEnvironment.js';
+import { buildEnvironment } from './engine/environmentBuilders.js';
 
 const CAMERA_SHOTS = {
   establish: { position: [22, 19, 25], target: [0, 1, 0] },
@@ -9,6 +9,15 @@ const CAMERA_SHOTS = {
   detail: { position: [7.5, 6.5, 9], target: [0, 1.4, 1.5] },
   aftermath: { position: [-18, 14, 16], target: [0, 1.2, 0] },
   resolve: { position: [15, 12, 19], target: [0, 1, 0] }
+};
+
+const ENVIRONMENT_MOODS = {
+  ocean: { calm:{sky:0x06344a,fog:0x0a4050},shock:{sky:0x0a5366,fog:0x0a4050},warning:{sky:0x184a58,fog:0x0a4050},chaos:{sky:0x123b50,fog:0x0a4050},aftermath:{sky:0x06344a,fog:0x0a4050} },
+  space: { calm:{sky:0x050916,fog:0x050916},shock:{sky:0x18142a,fog:0x050916},warning:{sky:0x1a111d,fog:0x050916},chaos:{sky:0x100d25,fog:0x050916},aftermath:{sky:0x050916,fog:0x050916} },
+  nature: { calm:{sky:0x91a98c,fog:0x91a98c},shock:{sky:0x9f806e,fog:0x9f806e},warning:{sky:0x9a7764,fog:0x9a7764},chaos:{sky:0x716f75,fog:0x716f75},aftermath:{sky:0x91a98c,fog:0x91a98c} },
+  airport: { calm:{sky:0x7a9ab2,fog:0x7a9ab2},shock:{sky:0x826d79,fog:0x826d79},warning:{sky:0x806a69,fog:0x806a69},chaos:{sky:0x665f71,fog:0x665f71},aftermath:{sky:0x7a9ab2,fog:0x7a9ab2} },
+  school: { calm:{sky:0x8eacc0,fog:0x8eacc0},shock:{sky:0x987c82,fog:0x987c82},warning:{sky:0x96777a,fog:0x96777a},chaos:{sky:0x746875,fog:0x746875},aftermath:{sky:0x8eacc0,fog:0x8eacc0} },
+  factory: { calm:{sky:0x4a555b,fog:0x4a555b},shock:{sky:0x553e45,fog:0x553e45},warning:{sky:0x5b3e42,fog:0x5b3e42},chaos:{sky:0x3d3545,fog:0x3d3545},aftermath:{sky:0x4a555b,fog:0x4a555b} }
 };
 
 const MOODS = {
@@ -74,7 +83,7 @@ export default function WorldView({ scenario, beat, playing }) {
     fillLight.position.set(15, 12, -14);
     scene.add(fillLight);
 
-    const city = buildCityEnvironment(scene);
+    const city = buildEnvironment(scene, state.current.scenario?.environment || 'urban');
     const clock = new THREE.Clock();
     const cameraPosition = new THREE.Vector3();
     const cameraTarget = new THREE.Vector3();
@@ -108,11 +117,12 @@ export default function WorldView({ scenario, beat, playing }) {
       camera.position.lerp(cameraPosition, 0.035);
       controls.target.lerp(cameraTarget, 0.035);
 
-      const mood = MOODS[currentBeat.mood] || MOODS.calm;
+      const palette = ENVIRONMENT_MOODS[currentScenario?.environment] || MOODS;
+      const mood = palette[currentBeat.mood] || palette.calm || MOODS.calm;
       skyTarget.setHex(mood.sky);
       fogTarget.setHex(mood.fog);
       scene.background.lerp(skyTarget, 0.025);
-      scene.fog.color.lerp(fogTarget, 0.025);
+      if (scene.fog) scene.fog.color.lerp(fogTarget, 0.025);
 
       const rubberAbsent = currentScenario && currentScenario.id === 'rubber' &&
         event === 'rubber-loss';
@@ -120,6 +130,8 @@ export default function WorldView({ scenario, beat, playing }) {
         event === 'gravity-loss';
       const powerAbsent = currentScenario && currentScenario.id === 'electricity' &&
         ['power-loss', 'blackout', 'countdown'].includes(event);
+
+      city.update?.({ elapsed, playing: isPlaying, event, scenario: currentScenario, beat: currentBeat });
 
       city.cars.forEach((car, index) => {
         const base = car.root.userData.basePosition;
@@ -144,7 +156,7 @@ export default function WorldView({ scenario, beat, playing }) {
         person.root.position.y = THREE.MathUtils.lerp(person.root.position.y, floatHeight, 0.06);
       });
 
-      city.windowMaterial.emissiveIntensity = THREE.MathUtils.lerp(
+      if (city.windowMaterial) city.windowMaterial.emissiveIntensity = THREE.MathUtils.lerp(
         city.windowMaterial.emissiveIntensity,
         powerAbsent ? 0.015 : 0.45,
         0.08

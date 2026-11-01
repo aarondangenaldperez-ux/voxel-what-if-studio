@@ -150,3 +150,11 @@ Keep the renderer independent of the UI. The storyboard should be serializable s
 ## Current release boundary
 
 The current release is a visual prototype. It does **not** yet generate complete What If videos, provide AI narrative generation, generate arbitrary scenario-specific worlds, animate rigged characters, or export MP4. Those capabilities are future milestones and must pass the acceptance checks above before being advertised as available.
+
+
+## Phase 2 — Procedural environment library
+
+- Added procedural builders for airport, school, underwater, space, factory, and natural environments alongside the original city.
+- Added keyword-based environment routing with unit tests; unsupported physical effects remain explicitly unmapped.
+- Added environment-specific animated set pieces: taxiing aircraft, school bus and pedestrians, swimming fish and submersible, satellite/spacecraft, factory conveyor and robotic arm, and moving wildlife.
+- These are deterministic procedural environments, not AI-generated 3D assets, general scientific simulation, or MP4 production.

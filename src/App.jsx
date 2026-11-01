@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 const WorldView = lazy(() => import('./WorldView.jsx'));
 import { buildScenarioPlan } from './engine/scenarioEngine.js';
+import { ENVIRONMENT_LABELS } from './engine/environmentCatalog.js';
 
 export default function App() {
   const [question, setQuestion] = useState('What if all rubber disappeared for 5 seconds?');
@@ -93,7 +94,7 @@ export default function App() {
         <div className="top-status">
           <span className="status-dot" />
           SCENARIO PREVIEW
-          <span className="version">ENGINE PHASE 1</span>
+          <span className="version">PROCEDURAL ENVIRONMENTS · PHASE 2</span>
         </div>
       </header>
 
@@ -120,7 +121,7 @@ export default function App() {
           </button>
           <div className="engine-status">
             <span className={scenario.supported ? 'engine-indicator mapped' : 'engine-indicator'} />
-            <span>{scenario.supported ? 'MAPPED EVENT · ' + scenario.label : 'UNMAPPED · GENERAL CITY PREVIEW'}</span>
+            <span>{scenario.supported ? 'MAPPED EVENT · ' + scenario.label : 'UNMAPPED · ' + (ENVIRONMENT_LABELS[scenario.environment] || 'CITY') + ' ENVIRONMENT'}</span>
           </div>
 
           <div className="divider" />
@@ -199,7 +200,7 @@ export default function App() {
       <footer className="footer">
         <span>VOXEL WHAT IF STUDIO</span>
         <span>REAL-TIME 3D SCENARIO PREVIEW</span>
-        <span>ENGINE PHASE 1 · VERTICAL PREVIEW</span>
+        <span>PROCEDURAL ENVIRONMENTS · VERTICAL PREVIEW</span>
       </footer>
     </main>
   );
