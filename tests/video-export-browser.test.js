@@ -89,6 +89,14 @@ test("production video export records a playable clip through recordCanvasVideo"
       let blob;
       try {
         blob = await recordCanvasVideo({
+          prepareSourceCanvas: async () => {
+            const probesCompleted = streams.length > 0 && streams.every((stream) =>
+              stream.getTracks().every((track) => track.readyState === "ended")
+            );
+            if (!probesCompleted) {
+              throw new Error("The full-resolution source preparation ran before encoder probing completed.");
+            }
+          },
           sourceCanvas,
           durationSeconds,
           beats,
