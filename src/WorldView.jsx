@@ -53,8 +53,11 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
       alpha: false,
       powerPreference: 'high-performance'
     });
-    const previewPixelRatio = Math.min(window.devicePixelRatio || 1, 1.6);
+    // Keep the live Three.js preview within a mobile-friendly GPU budget.
+    const compactViewport = window.matchMedia('(max-width: 640px)').matches;
+    const previewPixelRatio = Math.min(window.devicePixelRatio || 1, compactViewport ? 1.25 : 1.6);
     renderer.setPixelRatio(previewPixelRatio);
+    element.dataset.renderPixelRatio = String(previewPixelRatio);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.12;
@@ -75,7 +78,7 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
     const keyLight = new THREE.DirectionalLight(0xffdfb2, 3.0);
     keyLight.position.set(-12, 22, 15);
     keyLight.castShadow = true;
-    keyLight.shadow.mapSize.set(1536, 1536);
+    keyLight.shadow.mapSize.set(compactViewport ? 1024 : 1536, compactViewport ? 1024 : 1536);
     keyLight.shadow.camera.left = -28;
     keyLight.shadow.camera.right = 28;
     keyLight.shadow.camera.top = 28;
@@ -221,9 +224,35 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
       renderer.render(scene, camera);
     }
 
+    const renderStatus = document.createElement('div');
+    renderStatus.className = 'render-status';
+    renderStatus.setAttribute('role', 'status');
+    renderStatus.hidden = true;
+
+    const handleContextLost = (event) => {
+      event.preventDefault();
+      renderStatus.textContent = '3D graphics paused by the browser. Waiting for the graphics context to recover…';
+      renderStatus.hidden = false;
+      if (!renderStatus.parentNode) element.appendChild(renderStatus);
+    };
+    const handleContextRestored = () => {
+      renderStatus.textContent = '3D graphics restored. Rebuilding the scene…';
+      renderStatus.hidden = false;
+      requestAnimationFrame(() => {
+        renderStatus.hidden = true;
+        renderStatus.remove();
+      });
+    };
+
+    renderer.domElement.addEventListener('webglcontextlost', handleContextLost, false);
+    renderer.domElement.addEventListener('webglcontextrestored', handleContextRestored, false);
+
     animate();
 
     return () => {
+      renderer.domElement.removeEventListener('webglcontextlost', handleContextLost, false);
+      renderer.domElement.removeEventListener('webglcontextrestored', handleContextRestored, false);
+      renderStatus.remove();
       cancelAnimationFrame(frameId);
       resizeObserver.disconnect();
       if (captureRef?.current?.canvas === renderer.domElement) captureRef.current = null;
