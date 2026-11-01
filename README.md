@@ -20,7 +20,8 @@ A browser-based, vertical-first 3D scenario preview and storyboard prototype bui
 - Lazy-loaded 3D engine to reduce the initial application bundle
 - Mobile-aware WebGL quality cap (maximum 1.25 device pixel ratio on compact viewports) to reduce GPU load, plus an in-scene recovery notice if the browser loses the WebGL context
 - Scenario classification tests plus scene-construction/animation smoke tests for all six added environments
-- Chromium integration test calls the actual `recordCanvasVideo()` exporter and validates a playable encoded clip, beat timing, completion progress, and capture-track cleanup
+- Chromium integration test calls the actual `recordCanvasVideo()` exporter and validates a playable encoded clip, beat timing, rendered captions, completion progress, and capture-track cleanup
+- Video export cancels cleanly with a retry message if the browser tab becomes hidden
 - Bounded GitHub Pages deployment workflow that runs tests before publishing
 
 ## Run locally
@@ -48,4 +49,4 @@ This is an early rule-based 3D production-engine slice, not an AI video generato
 
 The app-owned playhead is the shared time source for scene animation and storyboard/export timing. Procedural environment and presenter transforms are now assigned from absolute timeline time, and automatic camera/mood transitions use beat-local time rather than accumulated render history. Pixel-identical output across different GPUs/browsers is not guaranteed, and manual OrbitControls remain user-input-driven. Export is still a real-time browser capture, not an offline fixed-frame renderer.
 
-The presenter is procedural geometry animated through pivot groups, not a skinned GLB rig; mouth gestures are not synchronized to audio. The application does not yet include AI/LLM story generation, reusable GLB character animation, general physics simulation, voice narration, or sound design. Video export is an initial browser-based real-time render with burned-in storyboard captions and no audio track. MP4 depends on a successful browser MediaRecorder sample test; WebM is the fallback and is never renamed to MP4. Rendering runs in the active browser tab, so the tab must remain open and visible. Export has not yet passed full-device Android/iOS QA or long-duration playback validation.
+The presenter is procedural geometry animated through pivot groups, not a skinned GLB rig; mouth gestures are not synchronized to audio. The application does not yet include AI/LLM story generation, reusable GLB character animation, general physics simulation, voice narration, or sound design. Video export is an initial browser-based real-time render with burned-in storyboard captions and no audio track. MP4 depends on a successful browser MediaRecorder sample test; WebM is the fallback and is never renamed to MP4. Rendering runs in the active browser tab, so the tab must remain in the foreground; hiding it cancels the export cleanly and requires a retry. Export has not yet passed full-device Android/iOS QA, a full 56-second app-button export test, or long-duration playback validation.
