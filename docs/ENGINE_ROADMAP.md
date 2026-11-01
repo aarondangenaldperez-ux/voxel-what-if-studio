@@ -179,3 +179,7 @@ The current release is a visual prototype. It does **not** yet generate complete
 - The render is real-time and browser-tab-bound; there is no offline frame renderer, pause/resume/cancel queue, or server rendering service.
 - Browser/platform codec differences still require physical Android/iOS device tests. Full 56-second exported-file playback, bitrate, frame continuity, and exact media metadata need dedicated QA before this can be treated as a production export pipeline.
 - The current UI uses one 1080×1920 render preset; performance fallback presets and memory limits remain to be implemented.
+
+- Added a short encoder preflight recording to avoid trusting browser codec-advertisement flags alone; the renderer falls through to the next real encoder when a candidate returns no video data.
+- During 1080×1920 capture, the WebGL renderer uses pixel ratio 1 and disables orbit manipulation to reduce GPU work and prevent camera changes; preview pixel ratio and controls are restored afterward.
+- Progress UI updates are throttled to whole percentages rather than triggering React updates every animation frame.

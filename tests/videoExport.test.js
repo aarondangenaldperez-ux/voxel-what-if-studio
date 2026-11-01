@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { chooseRecordingFormat, getBeatAtTime } from "../src/engine/videoExport.js";
+import { chooseRecordingFormat, findWorkingRecordingFormat, getBeatAtTime } from "../src/engine/videoExport.js";
 
 const beats = [
   { index: 0, durationSeconds: 8, caption: "Opening" },
@@ -42,4 +42,29 @@ test("caption timing follows storyboard beat boundaries exactly", () => {
   assert.equal(getBeatAtTime(beats, 13).index, 2);
   assert.equal(getBeatAtTime(beats, 90).index, 2);
   assert.equal(getBeatAtTime([], 0), null);
+});
+
+test("runtime encoder probe skips false-positive MP4 and selects a working WebM codec", async () => {
+  class Recorder {
+    static isTypeSupported(type) { return type.startsWith("video/mp4") || type.startsWith("video/webm"); }
+  }
+  const probed = [];
+  const selected = await findWorkingRecordingFormat(Recorder, async (mimeType) => {
+    probed.push(mimeType);
+    return mimeType === "video/webm;codecs=vp8";
+  });
+  assert.equal(selected.mimeType, "video/webm;codecs=vp8");
+  assert.equal(selected.extension, "webm");
+  assert.ok(probed.some((type) => type.startsWith("video/mp4")));
+  assert.equal(probed.at(-1), "video/webm;codecs=vp8");
+});
+
+test("runtime encoder probe rejects advertised formats that produce no video data", async () => {
+  class Recorder {
+    static isTypeSupported() { return true; }
+  }
+  await assert.rejects(
+    findWorkingRecordingFormat(Recorder, async () => false),
+    /none produced a valid recording/
+  );
 });

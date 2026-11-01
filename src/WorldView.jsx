@@ -52,7 +52,8 @@ export default function WorldView({ scenario, beat, playing, captureRef }) {
       alpha: false,
       powerPreference: 'high-performance'
     });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6));
+    const previewPixelRatio = Math.min(window.devicePixelRatio || 1, 1.6);
+    renderer.setPixelRatio(previewPixelRatio);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.12;
@@ -107,8 +108,18 @@ export default function WorldView({ scenario, beat, playing, captureRef }) {
     if (captureRef) {
       captureRef.current = {
         canvas: renderer.domElement,
-        setOutputSize(width, height) { exportSize = { width, height }; resize(); },
-        resetOutputSize() { exportSize = null; resize(); }
+        setOutputSize(width, height) {
+          controls.enabled = false;
+          renderer.setPixelRatio(1);
+          exportSize = { width, height };
+          resize();
+        },
+        resetOutputSize() {
+          exportSize = null;
+          renderer.setPixelRatio(previewPixelRatio);
+          controls.enabled = true;
+          resize();
+        }
       };
     }
 

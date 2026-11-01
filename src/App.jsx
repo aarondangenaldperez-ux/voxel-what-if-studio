@@ -109,6 +109,7 @@ export default function App() {
       target.setOutputSize(1080, 1920);
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       let lastBeatIndex = -1;
+      let lastProgressPercent = -1;
       const blob = await recordCanvasVideo({
         sourceCanvas: target.canvas,
         durationSeconds: scenario.durationSeconds,
@@ -122,7 +123,13 @@ export default function App() {
             setActiveBeatIndex(beat.index);
           }
         },
-        onProgress: setExportProgress
+        onProgress: (value) => {
+          const percent = Math.min(100, Math.floor(value * 100));
+          if (percent !== lastProgressPercent) {
+            lastProgressPercent = percent;
+            setExportProgress(percent / 100);
+          }
+        }
       });
 
       const extension = blob.type.includes('mp4') ? 'mp4' : 'webm';

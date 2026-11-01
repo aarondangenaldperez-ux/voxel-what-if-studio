@@ -24,6 +24,111 @@ export function chooseRecordingFormat(MediaRecorderClass = globalThis.MediaRecor
   return supported;
 }
 
+
+async function probeCanvasEncoder(mimeType, MediaRecorderClass) {
+  if (typeof document === "undefined" || typeof requestAnimationFrame !== "function") return false;
+  let stream;
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = 48;
+    canvas.height = 48;
+    const context = canvas.getContext("2d");
+    if (!context || typeof canvas.captureStream !== "function") return false;
+    stream = canvas.captureStream(0);
+    let track = stream.getVideoTracks()[0];
+    const manualCapture = typeof track?.requestFrame === "function";
+    if (!manualCapture) {
+      stream.getTracks().forEach((item) => item.stop());
+      stream = canvas.captureStream(12);
+      track = null;
+    }
+    const recorder = new MediaRecorderClass(stream, { mimeType });
+    return await new Promise((resolve) => {
+      const chunks = [];
+      let frameId = 0;
+      let timeoutId = 0;
+      let settled = false;
+      const finish = (success) => {
+        if (settled) return;
+        settled = true;
+        if (frameId) cancelAnimationFrame(frameId);
+        if (timeoutId) window.clearTimeout(timeoutId);
+        stream.getTracks().forEach((item) => item.stop());
+        resolve(success);
+      };
+      recorder.ondataavailable = (event) => {
+        if (event.data?.size) chunks.push(event.data);
+      };
+      recorder.onerror = () => finish(false);
+      recorder.onstop = () => finish(chunks.some((chunk) => chunk.size > 0));
+      try {
+        recorder.start(200);
+        const startedAt = performance.now();
+        let lastFrameAt = -Infinity;
+        const draw = (timestamp) => {
+          if (recorder.state !== "recording") return;
+          const hue = Math.floor((timestamp - startedAt) / 45) % 360;
+          context.fillStyle = "hsl(" + hue + " 75% 50%)";
+          context.fillRect(0, 0, 48, 48);
+          context.fillStyle = "#ffffff";
+          context.fillRect(hue % 40, 12, 8, 8);
+          if (manualCapture && timestamp - lastFrameAt >= 80) {
+            track.requestFrame();
+            lastFrameAt = timestamp;
+          }
+          if (timestamp - startedAt >= 900) {
+            recorder.stop();
+            return;
+          }
+          frameId = requestAnimationFrame(draw);
+        };
+        if (manualCapture) track.requestFrame();
+        frameId = requestAnimationFrame(draw);
+        timeoutId = window.setTimeout(() => {
+          if (recorder.state === "recording") recorder.stop();
+          else finish(false);
+        }, 2500);
+      } catch {
+        finish(false);
+      }
+    });
+  } catch {
+    stream?.getTracks().forEach((item) => item.stop());
+    return false;
+  }
+}
+
+export async function findWorkingRecordingFormat(
+  MediaRecorderClass = globalThis.MediaRecorder,
+  probe = probeCanvasEncoder
+) {
+  if (typeof MediaRecorderClass !== "function") {
+    throw new Error("This browser does not provide MediaRecorder video export.");
+  }
+  let advertisedFormats = 0;
+  for (const format of RECORDING_FORMATS) {
+    let supported = true;
+    try {
+      if (typeof MediaRecorderClass.isTypeSupported === "function") {
+        supported = MediaRecorderClass.isTypeSupported(format.mimeType);
+      }
+    } catch {
+      supported = false;
+    }
+    if (!supported) continue;
+    advertisedFormats += 1;
+    try {
+      if (await probe(format.mimeType, MediaRecorderClass)) return format;
+    } catch {
+      // Continue after false-positive capability reports.
+    }
+  }
+  if (advertisedFormats === 0) {
+    throw new Error("This browser cannot encode MP4 or WebM video. Try a supported desktop browser.");
+  }
+  throw new Error("The browser advertised video encoders, but none produced a valid recording. Try another browser.");
+}
+
 export function getBeatAtTime(beats, elapsedSeconds) {
   if (!Array.isArray(beats) || beats.length === 0) return null;
   const elapsed = Math.max(0, Number(elapsedSeconds) || 0);
@@ -97,7 +202,7 @@ export async function recordCanvasVideo({
     throw new Error("Canvas video export is unavailable in this browser context.");
   }
 
-  const format = chooseRecordingFormat(MediaRecorderClass);
+  const format = await findWorkingRecordingFormat(MediaRecorderClass);
   const output = document.createElement("canvas");
   output.width = width;
   output.height = height;
