@@ -159,7 +159,7 @@ test("production app renders WebGL, switches environments, and exports real file
     const videoDownload = await videoDownloadPromise;
     assert.match(
       videoDownload.suggestedFilename(),
-      /^voxel-what-if-rubber\\.(mp4|webm)$/,
+      /^voxel-what-if-rubber\.(mp4|webm)$/,
       "the app should download a correctly named MP4 or WebM file"
     );
     await page.waitForFunction(
