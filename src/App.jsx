@@ -125,7 +125,7 @@ export default function App() {
     }
 
     setExportError('');
-    setExportMessage('Preparing 1080 × 1920 video render…');
+    setExportMessage('Checking browser video encoder…');
     setExportProgress(0);
     const previousCameraMode = cameraMode;
     setCameraMode('auto');
@@ -136,13 +136,16 @@ export default function App() {
     setActiveBeatIndex(0);
 
     try {
-      target.setOutputSize(1080, 1920);
-      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       let lastBeatIndex = -1;
       let lastProgressPercent = -1;
       let lastUiTime = -Infinity;
       const blob = await recordCanvasVideo({
         sourceCanvas: target.canvas,
+        prepareSourceCanvas: async () => {
+          setExportMessage("Preparing 1080 × 1920 video render…");
+          target.setOutputSize(1080, 1920);
+          await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        },
         durationSeconds: scenario.durationSeconds,
         beats,
         width: 1080,
