@@ -16,7 +16,7 @@ A browser-based, vertical-first 3D scenario preview and storyboard prototype bui
 - Continuous 56-second timeline playhead with sub-second scrubbing, keyboard controls, and beat-start seeking
 - Live scene-lighting intensity control for hemisphere, key, and fill lights
 - 9:16 scene preview with prompt editing, scene selection, playback, and storyboard text export
-- Browser-rendered 1080×1920, 30fps video capture with burned-in storyboard captions; each advertised MP4/WebM encoder is tested with a short sample before full render, and the first encoder producing data is selected
+- Browser-rendered 1080×1920, 30fps video capture with burned-in storyboard captions; each advertised MP4/WebM encoder is tested with a short sample before the Three.js source canvas is upscaled for export, and the first encoder producing data is selected
 - Lazy-loaded 3D engine to reduce the initial application bundle
 - Mobile-aware WebGL quality cap (maximum 1.25 device pixel ratio on compact viewports) to reduce GPU load, plus an in-scene recovery notice if the browser loses the WebGL context
 - Scenario classification tests plus scene-construction/animation smoke tests for all six added environments
