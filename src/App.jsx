@@ -90,6 +90,62 @@ export default function App() {
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
+
+  const exportVideo = async () => {
+    const target = captureRef.current;
+    if (!target?.canvas) {
+      setExportError('The 3D renderer is not ready. Wait for the scene to load, then retry.');
+      return;
+    }
+
+    setExportError('');
+    setExportMessage('Preparing 1080 × 1920 video render…');
+    setExportProgress(0);
+    setExporting(true);
+    setPlaying(true);
+    setActiveBeatIndex(0);
+
+    try {
+      target.setOutputSize(1080, 1920);
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      let lastBeatIndex = -1;
+      const blob = await recordCanvasVideo({
+        sourceCanvas: target.canvas,
+        durationSeconds: scenario.durationSeconds,
+        beats,
+        width: 1080,
+        height: 1920,
+        fps: 30,
+        onTime: (_elapsed, beat) => {
+          if (beat && beat.index !== lastBeatIndex) {
+            lastBeatIndex = beat.index;
+            setActiveBeatIndex(beat.index);
+          }
+        },
+        onProgress: setExportProgress
+      });
+
+      const extension = blob.type.includes('mp4') ? 'mp4' : 'webm';
+      const fileName = 'voxel-what-if-' + scenario.id + '.' + extension;
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = fileName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+      setExportMessage('VIDEO GENERATED · ' + extension.toUpperCase() + ' · 1080 × 1920 · 30 FPS · CAPTIONS INCLUDED');
+    } catch (error) {
+      setExportError(error?.message || 'The video render failed. No video file was produced.');
+      setExportMessage('');
+    } finally {
+      try { target.resetOutputSize(); } catch { /* renderer may have been disposed */ }
+      setPlaying(false);
+      setExporting(false);
+    }
+  };
+
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -114,7 +170,8 @@ export default function App() {
           <textarea
             id="whatif"
             value={question}
-            onChange={(event) => setQuestion(event.target.value)}\n            disabled={exporting}
+            onChange={(event) => setQuestion(event.target.value)}
+            disabled={exporting}
             maxLength={150}
             placeholder="What if..."
           />
@@ -137,7 +194,8 @@ export default function App() {
               <button
                 key={beat.title}
                 className={'beat ' + (activeBeatIndex === index ? 'selected ' : '') + (index < activeBeatIndex ? 'passed' : '')}
-                disabled={exporting}\n                onClick={() => { setActiveBeatIndex(index); setPlaying(false); }}
+                disabled={exporting}
+                onClick={() => { setActiveBeatIndex(index); setPlaying(false); }}
               >
                 <span className="beat-marker">{index < activeBeatIndex ? '✓' : String(index + 1).padStart(2, '0')}</span>
                 <span className="beat-copy"><b>{beat.title}</b><small>{beat.time} · {beat.durationSeconds}s</small></span>
