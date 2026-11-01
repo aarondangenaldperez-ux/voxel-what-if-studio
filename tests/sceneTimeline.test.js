@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   getBeatAtTime,
   getBeatWindow,
+  getCityActorPoseAtTime,
   getEventEnvelope,
   getMotionTime,
   getTimelinePosition
@@ -56,4 +57,84 @@ test("paused motion preserves phase through the configured interruption window",
   assert.equal(getMotionTime(27, 8, 27), 8);
   assert.equal(getMotionTime(31, 8, 27), 12);
   assert.equal(getMotionTime(31, null, null), 31);
+});
+
+const rubberBeats = [
+  { event: "normal", durationSeconds: 8 },
+  { event: "rubber-loss", durationSeconds: 5 },
+  { event: "traffic-paused", durationSeconds: 14 },
+  { event: "recovery", durationSeconds: 21 },
+  { event: "restored", durationSeconds: 8 }
+];
+
+const gravityBeats = [
+  { event: "normal", durationSeconds: 8 },
+  { event: "gravity-loss", durationSeconds: 5 },
+  { event: "gravity-return", durationSeconds: 14 },
+  { event: "aftermath", durationSeconds: 21 },
+  { event: "restored", durationSeconds: 8 }
+];
+
+const electricityBeats = [
+  { event: "normal", durationSeconds: 8 },
+  { event: "power-loss", durationSeconds: 5 },
+  { event: "blackout", durationSeconds: 14 },
+  { event: "countdown", durationSeconds: 21 },
+  { event: "restored", durationSeconds: 8 }
+];
+
+test("city scenario poses are reconstructed from time rather than previous transforms", () => {
+  const atTen = getCityActorPoseAtTime({
+    elapsedSeconds: 10,
+    scenarioId: "rubber",
+    beats: rubberBeats,
+    actorIndex: 1
+  });
+  getCityActorPoseAtTime({ elapsedSeconds: 3, scenarioId: "rubber", beats: rubberBeats, actorIndex: 1 });
+  getCityActorPoseAtTime({ elapsedSeconds: 31, scenarioId: "rubber", beats: rubberBeats, actorIndex: 1 });
+  assert.deepEqual(getCityActorPoseAtTime({
+    elapsedSeconds: 10,
+    scenarioId: "rubber",
+    beats: rubberBeats,
+    actorIndex: 1
+  }), atTen);
+  assert.ok(atTen.wheelScale < 0.01, "rubber should be almost fully absent during the center of the event");
+
+  const pausedCar = getCityActorPoseAtTime({
+    elapsedSeconds: 18,
+    scenarioId: "rubber",
+    beats: rubberBeats,
+    actorIndex: 0
+  });
+  const atPauseStart = getCityActorPoseAtTime({
+    elapsedSeconds: 8,
+    scenarioId: "rubber",
+    beats: rubberBeats,
+    actorIndex: 0
+  });
+  assert.equal(pausedCar.carPositionZOffset, atPauseStart.carPositionZOffset);
+
+  const gravity = getCityActorPoseAtTime({
+    elapsedSeconds: 10,
+    scenarioId: "gravity",
+    beats: gravityBeats,
+    actorIndex: 0
+  });
+  assert.ok(gravity.carPositionY > 0.9);
+  assert.ok(gravity.pedestrianPositionY > 0.9);
+
+  const blackout = getCityActorPoseAtTime({
+    elapsedSeconds: 20,
+    scenarioId: "electricity",
+    beats: electricityBeats,
+    actorIndex: 0
+  });
+  const restored = getCityActorPoseAtTime({
+    elapsedSeconds: 50,
+    scenarioId: "electricity",
+    beats: electricityBeats,
+    actorIndex: 0
+  });
+  assert.equal(blackout.powerIntensity, 1);
+  assert.equal(restored.powerIntensity, 0);
 });
