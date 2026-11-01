@@ -42,6 +42,13 @@ jobs:
           test -d dist/assets
           echo "Production output verified"
 
+      - name: Install Chromium for browser smoke tests
+        run: |
+          npx playwright install --with-deps chromium
+
+      - name: Test production app in Chromium
+        run: npm run test:browser
+
       - name: Upload build artifact
         uses: actions/upload-pages-artifact@v3
         with:
