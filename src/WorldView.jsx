@@ -5,8 +5,7 @@ import { buildEnvironment } from './engine/environmentBuilders.js';
 import { buildVoxelPresenter } from './engine/voxelPresenter.js';
 import {
   getBeatWindow,
-  getEventEnvelope,
-  getMotionTime,
+  getCityActorPoseAtTime,
   getTimelinePosition,
   smoothStep01
 } from './engine/sceneTimeline.js';
@@ -196,25 +195,10 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
       }
       if (scene.fog) scene.fog.color.copy(fogFrom).lerp(fogTarget, transition);
 
-      const rubberWindow = getBeatWindow(beats, 'rubber-loss');
-      const gravityWindow = getBeatWindow(beats, 'gravity-loss');
-      const powerWindow = getBeatWindow(beats, 'power-loss');
-      const powerRestoreWindow = getBeatWindow(beats, 'restored');
-      const rubberIntensity = currentScenario?.id === 'rubber' && rubberWindow
-        ? getEventEnvelope(elapsed, rubberWindow.startSeconds, rubberWindow.endSeconds, 0.28)
-        : 0;
-      const gravityIntensity = currentScenario?.id === 'gravity' && gravityWindow
-        ? getEventEnvelope(elapsed, gravityWindow.startSeconds, gravityWindow.endSeconds, 0.35)
-        : 0;
-      const powerIntensity = currentScenario?.id === 'electricity' && powerWindow && powerRestoreWindow
-        ? getEventEnvelope(elapsed, powerWindow.startSeconds, powerRestoreWindow.startSeconds, 0.45)
-        : 0;
-
       const productionStopWindow = getBeatWindow(beats, 'production-stop');
       const productionResumeWindow = getBeatWindow(beats, 'production-resume');
       const oceanLossWindow = getBeatWindow(beats, 'ocean-loss');
       const oceanReturnWindow = getBeatWindow(beats, 'ocean-return');
-      const rubberRecoveryWindow = getBeatWindow(beats, 'recovery');
 
       city.update?.({
         elapsed,
@@ -230,37 +214,49 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
       presenter.root.visible = current.presenterVisible !== false;
       presenter.update({ elapsed, beat: currentBeat });
       element.dataset.presenterVisible = String(presenter.root.visible);
-      element.dataset.presenterSpeaking = String(elapsed > 0.001);
+      element.dataset.presenterSpeaking = String(Boolean(current.playing));
 
-      const rubberMotionTime = currentScenario?.id === 'rubber'
-        ? getMotionTime(elapsed, rubberWindow?.startSeconds, rubberRecoveryWindow?.startSeconds)
-        : elapsed;
+      const primaryScenePose = getCityActorPoseAtTime({
+        elapsedSeconds: elapsed,
+        scenarioId: currentScenario?.id,
+        beats,
+        actorIndex: 0
+      });
+      const powerIntensity = primaryScenePose.powerIntensity;
 
       city.cars.forEach((car, index) => {
+        const pose = getCityActorPoseAtTime({
+          elapsedSeconds: elapsed,
+          scenarioId: currentScenario?.id,
+          beats,
+          actorIndex: index
+        });
         const base = car.root.userData.basePosition;
-        const wheelScale = 1 - (0.999 * rubberIntensity);
         car.wheels.forEach((wheel) => {
           wheel.visible = true;
-          wheel.scale.setScalar(wheelScale);
+          wheel.scale.setScalar(pose.wheelScale);
         });
-        const gravityFloat = 0.95 + (index * 0.18) + Math.sin(elapsed * 2.1 + index) * 0.2;
-        car.root.position.y = (-0.22 * rubberIntensity) + (gravityFloat * gravityIntensity);
-        car.root.position.z = base.z + Math.sin(rubberMotionTime * 0.8 + index * 1.7) * 0.22;
-        car.root.rotation.x = (index % 2 === 0 ? -0.055 : 0.055) * rubberIntensity;
-        car.root.rotation.z = Math.sin(elapsed * 6 + index) * 0.045 * rubberIntensity;
+        car.root.position.y = pose.carPositionY;
+        car.root.position.z = base.z + pose.carPositionZOffset;
+        car.root.rotation.x = pose.carRotationX;
+        car.root.rotation.z = pose.carRotationZ;
       });
 
       city.pedestrians.forEach((person, index) => {
-        const swing = Math.sin(elapsed * 4.2 + index * 1.4) * 0.34;
-        person.arms[0].rotation.x = THREE.MathUtils.lerp(swing, -0.48, gravityIntensity);
-        person.arms[1].rotation.x = THREE.MathUtils.lerp(-swing, 0.48, gravityIntensity);
-        person.legs[0].rotation.x = THREE.MathUtils.lerp(-swing * 0.8, 0.12, gravityIntensity);
-        person.legs[1].rotation.x = THREE.MathUtils.lerp(swing * 0.8, -0.12, gravityIntensity);
-        const flinch = 0.82 * rubberIntensity;
-        person.arms[0].rotation.z = -flinch;
-        person.arms[1].rotation.z = flinch;
-        person.root.rotation.z = (index % 2 === 0 ? 0.045 : -0.045) * rubberIntensity;
-        person.root.position.y = gravityIntensity * (0.95 + Math.sin(elapsed * 2.1 + index) * 0.2);
+        const pose = getCityActorPoseAtTime({
+          elapsedSeconds: elapsed,
+          scenarioId: currentScenario?.id,
+          beats,
+          actorIndex: index
+        });
+        person.arms[0].rotation.x = pose.pedestrianArmRotationX[0];
+        person.arms[1].rotation.x = pose.pedestrianArmRotationX[1];
+        person.legs[0].rotation.x = pose.pedestrianLegRotationX[0];
+        person.legs[1].rotation.x = pose.pedestrianLegRotationX[1];
+        person.arms[0].rotation.z = pose.pedestrianArmRotationZ[0];
+        person.arms[1].rotation.z = pose.pedestrianArmRotationZ[1];
+        person.root.rotation.z = pose.pedestrianRootRotationZ;
+        person.root.position.y = pose.pedestrianPositionY;
       });
 
       if (city.windowMaterial) {
