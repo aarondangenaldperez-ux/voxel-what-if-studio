@@ -81,3 +81,23 @@ test('factory stop intent also maps when the action phrase comes first', () => {
   assert.equal(plan.id, 'factory');
   assert.equal(plan.supported, true);
 });
+
+test('ocean disappearance prompt creates a mapped underwater consequence sequence', () => {
+  const plan = buildScenarioPlan('What if the ocean vanished?');
+  assert.equal(plan.id, 'ocean');
+  assert.equal(plan.supported, true);
+  assert.equal(plan.environment, 'ocean');
+  assert.equal(plan.beats.length, 5);
+  assert.equal(plan.beats[1].event, 'ocean-loss');
+  assert.equal(plan.beats[1].durationSeconds, 5);
+  assert.equal(plan.beats[2].event, 'ocean-hold');
+  assert.equal(plan.beats[3].event, 'ocean-return');
+  assert.equal(plan.beats[4].event, 'restored');
+  assert.equal(plan.durationSeconds, 56);
+});
+
+test('ocean disappearance rule also recognizes seawater evaporation phrasing', () => {
+  const plan = buildScenarioPlan('What if seawater evaporated from the seas?');
+  assert.equal(plan.id, 'ocean');
+  assert.equal(plan.supported, true);
+});

@@ -69,3 +69,33 @@ test('factory production-stop event freezes conveyor crates and rollers, then re
     materials.filter(Boolean).forEach((item) => item.dispose?.());
   });
 });
+
+test('ocean-loss removes the water surface and lowers marine life, then restores the scene', () => {
+  const scene = new THREE.Scene();
+  const built = buildEnvironment(scene, 'ocean');
+  assert.equal(built.waterSurface.visible, true);
+  assert.equal(built.fishList.length, 4);
+
+  const startingHeights = built.fishList.map((fish) => fish.position.y);
+  built.update({ elapsed: 8, playing: true, event: 'ocean-loss' });
+  assert.equal(built.waterSurface.visible, false);
+  assert.ok(built.fishList.every((fish, index) => fish.position.y < startingHeights[index]));
+
+  for (let frame = 0; frame < 30; frame += 1) {
+    built.update({ elapsed: 8.5 + frame / 30, playing: true, event: 'ocean-hold' });
+  }
+  assert.ok(built.fishList.every((fish) => fish.position.y < 1.5));
+
+  built.update({ elapsed: 27, playing: true, event: 'ocean-return' });
+  assert.equal(built.waterSurface.visible, true);
+  for (let frame = 0; frame < 30; frame += 1) {
+    built.update({ elapsed: 27.5 + frame / 30, playing: true, event: 'restored' });
+  }
+  assert.ok(built.fishList.every((fish) => fish.position.y > 1.5));
+
+  scene.traverse((object) => {
+    object.geometry?.dispose?.();
+    const materials = Array.isArray(object.material) ? object.material : [object.material];
+    materials.filter(Boolean).forEach((item) => item.dispose?.());
+  });
+});

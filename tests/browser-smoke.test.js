@@ -78,6 +78,14 @@ test("production app renders WebGL, switches environments, and exports a storybo
           document.querySelector(".scene-caption strong")?.textContent === "The entire production line stops."
         );
       }
+      if (environment === "ocean") {
+        const mappingStatus = await page.locator(".engine-status").innerText();
+        assert.match(mappingStatus, /MAPPED EVENT.*OCEAN DISAPPEARS/);
+        await page.locator(".beat").nth(1).click();
+        await page.waitForFunction(() =>
+          document.querySelector(".scene-caption strong")?.textContent === "The ocean disappears in an instant."
+        );
+      }
     }
 
 

@@ -61,6 +61,21 @@ const RULES = [
       ["00:48", "Production is restored", "The crates, rollers and robotic arm settle into their regular coordinated motion.", "The factory is back in operation.", "restored", "resolve", 8]
     ]
   },
+  {
+    id: "ocean",
+    pattern: /(?:ocean|oceans|sea|seas|seawater).{0,35}(?:disappear|vanish|evaporat|drain|dry up)|(?:disappear|vanish|evaporat|drain|dry up).{0,35}(?:ocean|oceans|sea|seas|seawater)/i,
+    label: "OCEAN DISAPPEARS",
+    phenomenon: "The ocean vanishes temporarily",
+    environment: "ocean",
+    supported: true,
+    beats: [
+      ["00:00", "A living underwater world", "Fish move above the coral reef while a submarine cruises through the blue water.", "An entire underwater ecosystem depends on the ocean.", "normal", "establish", 8],
+      ["00:08", "The ocean disappears", "The water surface vanishes. Fish and the submarine begin descending toward the exposed seabed.", "The ocean disappears in an instant.", "ocean-loss", "event", 5],
+      ["00:13", "Marine life is exposed", "The water remains absent while fish settle toward the ocean floor and the submarine loses buoyancy.", "The underwater world is suddenly exposed.", "ocean-hold", "detail", 14],
+      ["00:27", "The water returns", "The water surface reappears as fish and the submarine rise back into the water column.", "The ocean rushes back into the scene.", "ocean-return", "aftermath", 21],
+      ["00:48", "The reef stabilizes", "Fish resume swimming around the coral and the submarine returns to a steady patrol.", "The underwater ecosystem begins to recover.", "restored", "resolve", 8]
+    ]
+  },
 ];
 
 const UNMAPPED_BEATS = [

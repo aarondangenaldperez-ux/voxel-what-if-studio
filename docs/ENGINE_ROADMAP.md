@@ -191,3 +191,11 @@ The current release is a visual prototype. It does **not** yet generate complete
 - The factory's conveyor crates and rollers now visibly stop and hold during the interruption beat; the robotic arm moves toward its rest position. The production-resume beat restarts crate motion, roller rotation and arm cycling.
 - Added scenario-plan tests, factory animation-state tests, and a Chromium UI check that verifies this prompt is mapped and selects its event beat.
 - This is still a deterministic rule, not general AI understanding or a factory simulation with real machinery physics.
+
+
+## Phase 5 — Ocean disappearance scenario
+
+- Added an environment-matched ocean-disappearance rule with a five-beat story sequence.
+- The underwater water-surface mesh becomes hidden during the ocean-loss/hold beats; fish descend toward the seabed and the submarine drops lower. The surface and actors return during the ocean-return beat.
+- Added scenario plan tests, environment state-transition tests, and Chromium UI checks for the mapped event and its selected beat.
+- This is a stylized visual consequence, not a fluid simulation or a scientific model of global sea-level change.

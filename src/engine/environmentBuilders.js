@@ -118,7 +118,7 @@ function fish(scene,x,y,z,color,scale=1) {
 function ocean(scene) {
   const s=common(); scene.fog=new THREE.Fog(0x063348,18,78); ground(scene,0x19494a,110);
   box(scene,[110,.12,110],[0,-.2,0],mat(0x1b4b4c));
-  add(scene,new THREE.PlaneGeometry(110,110),mat(0x2688a4,{transparent:true,opacity:.22,side:THREE.DoubleSide}),[0,18,0],[-Math.PI/2,0,0]);
+  const waterSurface=add(scene,new THREE.PlaneGeometry(110,110),mat(0x2688a4,{transparent:true,opacity:.22,side:THREE.DoubleSide}),[0,18,0],[-Math.PI/2,0,0]);
   const coralColors=[0xd47565,0xe0a35b,0x897eb0,0xd7bd70];
   for(let i=0;i<20;i++) {
     const x=Math.sin(i*4.4)*21,z=Math.cos(i*3.3)*19,g=group(scene,[x,0,z]);
@@ -134,7 +134,23 @@ function ocean(scene) {
   cyl(sub,.9,.9,4.4,[0,0,0],gold,12,[Math.PI/2,0,0]);
   sphere(sub,.7,[0,0,-2],gold,12); box(sub,[.28,1.4,1],[0,1,.2],gold);
   for(let i=0;i<3;i++) sphere(sub,.13,[0,.2,-.75+i*.65],mat(0x72c5d2,{metalness:.25}),8);
-  s.update=({elapsed,playing})=>{if(!playing)return;fishList.forEach(f=>{f.position.x=f.userData.baseX+Math.sin(elapsed*.32+f.userData.phase)*2.5;f.position.y=f.userData.baseY+Math.sin(elapsed*1.3+f.userData.phase)*.18;f.rotation.y=Math.sin(elapsed*.3+f.userData.phase)*.12;});sub.position.y=5+Math.sin(elapsed*.55)*.32;sub.rotation.z=Math.sin(elapsed*.4)*.03;};
+  s.waterSurface=waterSurface;
+  s.fishList=fishList;
+  s.submarine=sub;
+  s.update=({elapsed,playing,event})=>{
+    const oceanAbsent=event==="ocean-loss"||event==="ocean-hold";
+    waterSurface.visible=!oceanAbsent;
+    if(!playing)return;
+    fishList.forEach(f=>{
+      f.position.x=f.userData.baseX+Math.sin(elapsed*.32+f.userData.phase)*2.5;
+      const targetY=oceanAbsent?.55:f.userData.baseY+Math.sin(elapsed*1.3+f.userData.phase)*.18;
+      f.position.y=THREE.MathUtils.lerp(f.position.y,targetY,oceanAbsent?.055:.075);
+      f.rotation.y=Math.sin(elapsed*.3+f.userData.phase)*.12;
+    });
+    const subTarget=oceanAbsent?.7:5+Math.sin(elapsed*.55)*.32;
+    sub.position.y=THREE.MathUtils.lerp(sub.position.y,subTarget,oceanAbsent?.045:.06);
+    sub.rotation.z=Math.sin(elapsed*.4)*.03;
+  };
   return s;
 }
 
