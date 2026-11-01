@@ -94,3 +94,51 @@ export function getEventEnvelope(elapsedSeconds, startSeconds, endSeconds, trans
   const leaving = smoothStep01((end - time) / transition);
   return Math.min(entering, leaving);
 }
+export function getCityActorPoseAtTime({ elapsedSeconds, scenarioId, beats, actorIndex = 0 } = {}) {
+  const time = Math.max(0, Number.isFinite(Number(elapsedSeconds)) ? Number(elapsedSeconds) : 0);
+  const index = Math.max(0, Number(actorIndex) || 0);
+  const rubberWindow = getBeatWindow(beats, "rubber-loss");
+  const gravityWindow = getBeatWindow(beats, "gravity-loss");
+  const powerWindow = getBeatWindow(beats, "power-loss");
+  const powerRestoreWindow = getBeatWindow(beats, "restored");
+  const rubberRecoverySeconds = getBeatStartSeconds(beats, "recovery");
+
+  const rubberIntensity = scenarioId === "rubber" && rubberWindow
+    ? getEventEnvelope(time, rubberWindow.startSeconds, rubberWindow.endSeconds, 0.28)
+    : 0;
+  const gravityIntensity = scenarioId === "gravity" && gravityWindow
+    ? getEventEnvelope(time, gravityWindow.startSeconds, gravityWindow.endSeconds, 0.35)
+    : 0;
+  const powerIntensity = scenarioId === "electricity" && powerWindow && powerRestoreWindow
+    ? getEventEnvelope(time, powerWindow.startSeconds, powerRestoreWindow.startSeconds, 0.45)
+    : 0;
+
+  const motionTime = scenarioId === "rubber"
+    ? getMotionTime(time, rubberWindow?.startSeconds, rubberRecoverySeconds)
+    : time;
+  const swing = Math.sin(time * 4.2 + index * 1.4) * 0.34;
+  const gravityFloat = 0.95 + (index * 0.18) + Math.sin(time * 2.1 + index) * 0.2;
+
+  return {
+    wheelScale: 1 - (0.999 * rubberIntensity),
+    carPositionY: (-0.22 * rubberIntensity) + (gravityFloat * gravityIntensity),
+    carPositionZOffset: Math.sin(motionTime * 0.8 + index * 1.7) * 0.22,
+    carRotationX: (index % 2 === 0 ? -0.055 : 0.055) * rubberIntensity,
+    carRotationZ: Math.sin(time * 6 + index) * 0.045 * rubberIntensity,
+    pedestrianArmRotationX: [
+      swing + (-0.48 - swing) * gravityIntensity,
+      -swing + (0.48 + swing) * gravityIntensity
+    ],
+    pedestrianLegRotationX: [
+      (-swing * 0.8) + (0.12 + swing * 0.8) * gravityIntensity,
+      (swing * 0.8) + (-0.12 - swing * 0.8) * gravityIntensity
+    ],
+    pedestrianArmRotationZ: [
+      -0.82 * rubberIntensity,
+      0.82 * rubberIntensity
+    ],
+    pedestrianRootRotationZ: (index % 2 === 0 ? 0.045 : -0.045) * rubberIntensity,
+    pedestrianPositionY: gravityIntensity * (0.95 + Math.sin(time * 2.1 + index) * 0.2),
+    powerIntensity
+  };
+}
