@@ -126,6 +126,8 @@ export default function App() {
     setExportError('');
     setExportMessage('Preparing 1080 × 1920 video render…');
     setExportProgress(0);
+    const previousCameraMode = cameraMode;
+    setCameraMode('auto');
     setExporting(true);
     setPlaying(true);
     playheadRef.current = 0;
@@ -181,6 +183,7 @@ export default function App() {
       try { target.resetOutputSize(); } catch { /* renderer may have been disposed */ }
       setPlaying(false);
       setExporting(false);
+      setCameraMode(previousCameraMode);
     }
   };
 
