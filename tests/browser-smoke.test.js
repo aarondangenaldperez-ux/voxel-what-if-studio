@@ -156,16 +156,26 @@ test("production app renders WebGL, switches environments, and exports real file
 
     const videoDownloadPromise = page.waitForEvent("download", { timeout: 160000 });
     await page.locator(".video-export-button").click();
+    await page.waitForFunction(
+      () => {
+        const success = document.querySelector(".video-export-success")?.textContent.includes("VIDEO GENERATED");
+        const error = document.querySelector(".video-export-error")?.textContent.trim();
+        return Boolean(success || error);
+      },
+      null,
+      { timeout: 160000 }
+    );
+    const exportError = await page.locator(".video-export-error").textContent();
+    assert.equal(
+      await page.locator(".video-export-error").count(),
+      0,
+      "the app should complete video export without an error: " + (exportError || "")
+    );
     const videoDownload = await videoDownloadPromise;
     assert.match(
       videoDownload.suggestedFilename(),
-      /^voxel-what-if-rubber\.(mp4|webm)$/,
+      /^voxel-what-if-rubber\\.(mp4|webm)$/,
       "the app should download a correctly named MP4 or WebM file"
-    );
-    await page.waitForFunction(
-      () => document.querySelector(".video-export-success")?.textContent.includes("VIDEO GENERATED"),
-      null,
-      { timeout: 10000 }
     );
     assert.equal(await page.locator(".video-export-error").count(), 0,
       "the UI should not show an export error after a successful download");
