@@ -140,6 +140,7 @@ export default function App() {
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       let lastBeatIndex = -1;
       let lastProgressPercent = -1;
+      let lastUiTime = -Infinity;
       const blob = await recordCanvasVideo({
         sourceCanvas: target.canvas,
         durationSeconds: scenario.durationSeconds,
@@ -148,13 +149,15 @@ export default function App() {
         height: 1920,
         fps: 30,
         onTime: (elapsed, beat) => {
+          const timelineTime = Math.max(0, Math.min(scenario.durationSeconds, elapsed));
+          playheadRef.current = timelineTime;
           if (beat && beat.index !== lastBeatIndex) {
             lastBeatIndex = beat.index;
             setActiveBeatIndex(beat.index);
           }
-          if (Math.abs(elapsed - playheadRef.current) >= 0.1 || elapsed >= scenario.durationSeconds) {
-            playheadRef.current = elapsed;
-            setPlayheadSeconds(elapsed);
+          if (timelineTime - lastUiTime >= (1 / 30) || timelineTime >= scenario.durationSeconds) {
+            lastUiTime = timelineTime;
+            setPlayheadSeconds(timelineTime);
           }
         },
         onProgress: (value) => {
@@ -262,7 +265,7 @@ export default function App() {
 
           <div className="viewport">
             <Suspense fallback={<div className="viewport-loading">LOADING 3D SCENE ENGINE…</div>}>
-              <WorldView scenario={scenario} beat={active} playing={playing} cameraMode={cameraMode} lighting={lighting} presenterVisible={presenterVisible} captureRef={captureRef} />
+              <WorldView scenario={scenario} beat={active} playing={playing} cameraMode={cameraMode} lighting={lighting} presenterVisible={presenterVisible} captureRef={captureRef} timelineRef={playheadRef} />
             </Suspense>
             <div className="viewport-top">
               <span className="live-pill"><span /> 3D SCENE</span>
