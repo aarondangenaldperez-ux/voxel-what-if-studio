@@ -3,7 +3,7 @@ import { detectEnvironment } from "./environmentCatalog.js";
 const RULES = [
   {
     id: "rubber",
-    pattern: /(?=.*\b(?:rubber|tires?|tyres?)\b)(?=.*\b(?:5|five)\s*-?\s*(?:seconds?|secs?|s)\b)/i,
+    pattern: /(?=.*\b(?:rubber|tires?|tyres?)\b)(?=.*\b(?:disappear(?:ed|s|ing)?|vanish(?:ed|es|ing)?|loss|lost|removed)\b)(?=.*\b(?:5|five)\s*-?\s*(?:seconds?|secs?|s)\b)/i,
     label: "RUBBER DISAPPEARS",
     phenomenon: "All rubber disappears for five seconds",
     environment: "urban",
