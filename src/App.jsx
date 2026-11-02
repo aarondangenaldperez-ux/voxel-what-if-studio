@@ -231,8 +231,8 @@ export default function App() {
         sourceCanvas: target.canvas,
         renderSourceFrame: (elapsed) => target.renderAtTime(elapsed),
         prepareSourceCanvas: async ({ signal }) => {
-          setExportMessage("Preparing 1080 × 1920 video render…");
-          target.setOutputSize(1080, 1920);
+          setExportMessage("Preparing 900 × 1600 scene render for 1080 × 1920 output…");
+          target.setOutputSize(900, 1600);
           await waitForAnimationFrames(signal, 2);
         },
         durationSeconds: scenario.durationSeconds,
@@ -271,7 +271,7 @@ export default function App() {
       anchor.click();
       anchor.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 60000);
-      setExportMessage('VIDEO GENERATED · ' + extension.toUpperCase() + ' · 1080 × 1920 · 24 FPS · CAPTIONS INCLUDED');
+      setExportMessage('VIDEO GENERATED · ' + extension.toUpperCase() + ' · 1080 × 1920 OUTPUT · 24 FPS · 900 × 1600 SCENE RENDER');
     } catch (error) {
       setExportError(error?.message || 'The video render failed. No video file was produced.');
       setExportMessage('');
@@ -416,7 +416,7 @@ export default function App() {
               <Video size={16} />
               {exporting ? 'RENDERING VIDEO · ' + Math.round(exportProgress * 100) + '%' : 'RENDER FULL VERTICAL VIDEO'}
             </button>
-            <div className="video-export-meta">1080 × 1920 · 24 FPS · STORY CAPTIONS · MP4 WHEN SUPPORTED, OTHERWISE WEBM</div>
+            <div className="video-export-meta">1080 × 1920 OUTPUT · 24 FPS · 900 × 1600 SCENE RENDER · STORY CAPTIONS · MP4 WHEN SUPPORTED, OTHERWISE WEBM</div>
             {exporting && <div className="video-export-track"><span style={{ width: Math.round(exportProgress * 100) + '%' }} /></div>}
             {exporting && <div className="video-export-meta">Keep this tab open and visible while the real-time render runs.</div>}
             {exportMessage && <div className="video-export-success">{exportMessage}</div>}
