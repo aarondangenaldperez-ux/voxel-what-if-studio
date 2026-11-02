@@ -208,7 +208,8 @@ export async function recordCanvasVideo({
   onTime = () => {},
   onProgress = () => {},
   MediaRecorderClass = globalThis.MediaRecorder,
-  prepareSourceCanvas = async () => {}
+  prepareSourceCanvas = async () => {},
+  renderSourceFrame = () => {}
 }) {
   if (!sourceCanvas || typeof sourceCanvas.captureStream !== "function") {
     throw new Error("The 3D preview canvas is not ready for video capture.");
@@ -352,6 +353,10 @@ export async function recordCanvasVideo({
           try {
             const elapsed = Math.min(durationSeconds, Math.max(0, (timestamp - recordingStartedAt) / 1000));
             if (!manualCapture || timestamp - lastCapturedAt >= frameInterval) {
+              // Render the 3D scene at this exact storyboard timestamp before
+              // copying it into the recording canvas. Do not rely on a separate
+              // animation loop winning the requestAnimationFrame race.
+              renderSourceFrame(elapsed);
               drawFrame(elapsed);
               if (manualCapture) captureTrack.requestFrame();
               lastCapturedAt = timestamp;
