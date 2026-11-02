@@ -140,7 +140,10 @@ export default function App() {
         if (nextScenario.id !== 'rubber' ||
           plan.simulationModelId !== 'city-traffic-kinematics-v1' ||
           eventStart !== plan.event.startSeconds ||
-          nextScenario.beats[eventIndex]?.durationSeconds !== plan.event.durationSeconds) {
+          nextScenario.beats[eventIndex]?.durationSeconds !== plan.event.durationSeconds ||
+          nextScenario.beats.findIndex((item) => item.event === 'recovery') < 0 ||
+          nextScenario.beats.slice(0, nextScenario.beats.findIndex((item) => item.event === 'recovery'))
+            .reduce((sum, item) => sum + item.durationSeconds, 0) !== plan.event.recoveryStartSeconds) {
           throw new Error('The AI plan does not match the registered local simulation contract. It was not executed.');
         }
       }
