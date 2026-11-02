@@ -21,10 +21,31 @@ function makeBuilding(scene, x, z, width, depth, height, palette, shared) {
   const floors = Math.max(2, Math.floor(height / 1.65));
   const columns = Math.max(2, Math.floor(width / 1.25));
   for (let floor = 0; floor < floors; floor += 1) {
+    const wy = 0.9 + floor * 1.55;
     for (let col = 0; col < columns; col += 1) {
       const wx = -width / 2 + ((col + 0.5) * width / columns);
-      const wy = 0.9 + floor * 1.55;
-      makeCube(0.42, 0.58, 0.055, shared.window, [wx, wy, depth / 2 + 0.035], group);
+      for (const face of [-1, 1]) {
+        const window = makeCube(0.42, 0.58, 0.055, shared.window, [wx, wy, face * (depth / 2 + 0.035)], group);
+        window.castShadow = false;
+        window.receiveShadow = false;
+      }
+    }
+    const sideColumns = Math.max(2, Math.floor(depth / 1.35));
+    for (const face of [-1, 1]) {
+      for (let col = 0; col < sideColumns; col += 1) {
+        const wz = -depth / 2 + ((col + 0.5) * depth / sideColumns);
+        const window = makeCube(0.055, 0.58, 0.42, shared.window, [face * (width / 2 + 0.035), wy, wz], group);
+        window.castShadow = false;
+        window.receiveShadow = false;
+      }
+    }
+    const band = makeCube(width * 0.94, 0.075, 0.09, shared.trim, [0, wy - 0.45, depth / 2 + 0.055], group);
+    band.castShadow = false;
+  }
+  for (const sideX of [-1, 1]) {
+    for (const sideZ of [-1, 1]) {
+      const corner = makeCube(0.13, height, 0.13, shared.trim, [sideX * (width / 2 - 0.08), height / 2, sideZ * (depth / 2 - 0.08)], group);
+      corner.castShadow = false;
     }
   }
 
@@ -65,6 +86,7 @@ function makeCar(scene, x, z, rotation, color, shared) {
 
   root.position.set(x, 0, z);
   root.userData.basePosition = root.position.clone();
+  root.userData.baseRotationY = rotation;
   root.userData.body = body;
   scene.add(root);
   return { root: root, wheels: wheels, body: body };
@@ -93,6 +115,7 @@ function makePedestrian(scene, x, z, color, shared) {
     legs.push(leg);
   }
   root.position.set(x, 0, z);
+  root.userData.basePosition = root.position.clone();
   scene.add(root);
   return { root: root, arms: arms, legs: legs, torso: torso, head: head };
 }
