@@ -91,6 +91,7 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
 
     const city = buildEnvironment(scene, scenario?.environment || 'urban');
     const rubberWindow = getBeatWindow(scenario?.beats || [], 'rubber-loss');
+    const recoveryWindow = getBeatWindow(scenario?.beats || [], 'recovery');
     const trafficSimulation = scenario?.id === 'rubber'
       ? createCityTrafficSimulation({
           vehicles: city.cars.map((car) => ({
@@ -101,7 +102,8 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
           })),
           durationSeconds: scenario.durationSeconds,
           eventStartSeconds: rubberWindow?.startSeconds ?? 8,
-          eventDurationSeconds: rubberWindow?.durationSeconds ?? 5
+          eventDurationSeconds: rubberWindow?.durationSeconds ?? 5,
+          recoveryStartSeconds: recoveryWindow?.startSeconds ?? (rubberWindow?.endSeconds ?? 13)
         })
       : null;
     state.current.onSimulationReport?.(trafficSimulation?.summary || null);
@@ -244,12 +246,12 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
           if (!vehicleState) return;
           // The computational model is the source of truth for vehicle transforms
           // and tire presence. The renderer only maps entity state to Three.js.
-          car.root.position.set(vehicleState.x, vehicleState.bodyDrop, vehicleState.z);
+          car.root.position.set(vehicleState.x, -vehicleState.bodyDrop, vehicleState.z);
           car.root.rotation.x = 0;
           car.root.rotation.z = 0;
           car.wheels.forEach((wheel) => {
             wheel.visible = vehicleState.wheelsPresent;
-            wheel.rotation.x = vehicleState.travelDistance;
+            wheel.rotation.x = vehicleState.wheelRotation;
           });
           car.root.userData.simulationSpeed = vehicleState.speed;
           car.root.userData.simulationState = vehicleState.state;
