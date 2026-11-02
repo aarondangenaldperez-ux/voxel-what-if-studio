@@ -3,27 +3,13 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { buildEnvironment } from './engine/environmentBuilders.js';
 import { buildVoxelPresenter } from './engine/voxelPresenter.js';
+import { getCinematicCameraPose } from './engine/cameraDirector.js';
 import {
   getBeatWindow,
   getCityActorPoseAtTime,
   getTimelinePosition,
   smoothStep01
 } from './engine/sceneTimeline.js';
-
-const CAMERA_SHOTS = {
-  establish: { position: [22, 19, 25], target: [0, 1, 0] },
-  event: { position: [4, 6, 19], target: [0, 2.55, 8.5] },
-  detail: { position: [0, 4.3, 15.5], target: [0, 3.05, 8.7] },
-  aftermath: { position: [-9, 8, 19], target: [0, 2.45, 7.5] },
-  resolve: { position: [10, 7, 22], target: [0, 2.5, 7.5] }
-};
-
-const RUBBER_CAMERA_SHOTS = {
-  ...CAMERA_SHOTS,
-  event: { position: [14, 8, 18], target: [0, 0.8, 0] },
-  detail: { position: [-9.8, 4.6, 8.8], target: [-8.2, 0.7, 1.55] },
-  aftermath: { position: [-13, 7.5, 15], target: [0, 0.9, 0] }
-};
 
 const ENVIRONMENT_MOODS = {
   ocean: { calm:{sky:0x06344a,fog:0x0a4050},shock:{sky:0x0a5366,fog:0x0a4050},warning:{sky:0x184a58,fog:0x0a4050},chaos:{sky:0x123b50,fog:0x0a4050},aftermath:{sky:0x06344a,fog:0x0a4050} },
@@ -58,8 +44,8 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
     scene.background = new THREE.Color(MOODS.calm.sky);
     scene.fog = new THREE.Fog(MOODS.calm.fog, 22, 58);
 
-    const camera = new THREE.PerspectiveCamera(43, 1, 0.1, 120);
-    camera.position.set(22, 19, 25);
+    const camera = new THREE.PerspectiveCamera(52, 1, 0.1, 160);
+    camera.position.set(0, 25, 43);
 
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
@@ -104,10 +90,6 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
 
     const city = buildEnvironment(scene, scenario?.environment || 'urban');
     const presenter = buildVoxelPresenter(scene, { position: [0, 0, 9], scale: 1.05 });
-    const cameraPosition = new THREE.Vector3();
-    const cameraTarget = new THREE.Vector3();
-    const cameraFromPosition = new THREE.Vector3();
-    const cameraFromTarget = new THREE.Vector3();
     const skyFrom = new THREE.Color();
     const skyTarget = new THREE.Color();
     const fogFrom = new THREE.Color();
@@ -172,15 +154,15 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
       element.dataset.cameraMode = manualCamera ? 'orbit' : 'auto';
       element.dataset.orbitControls = String(controls.enabled);
       if (!manualCamera) {
-        const shotLibrary = currentScenario?.id === 'rubber' ? RUBBER_CAMERA_SHOTS : CAMERA_SHOTS;
-        const previousShot = shotLibrary[previousBeat.camera] || shotLibrary.establish;
-        const cameraShot = shotLibrary[currentBeat.camera] || shotLibrary.establish;
-        cameraFromPosition.fromArray(previousShot.position);
-        cameraFromTarget.fromArray(previousShot.target);
-        cameraPosition.fromArray(cameraShot.position);
-        cameraTarget.fromArray(cameraShot.target);
-        camera.position.copy(cameraFromPosition).lerp(cameraPosition, transition);
-        controls.target.copy(cameraFromTarget).lerp(cameraTarget, transition);
+        const cameraPose = getCinematicCameraPose({
+          beats,
+          elapsedSeconds: elapsed,
+          scenarioId: currentScenario?.id
+        });
+        camera.position.fromArray(cameraPose.position);
+        controls.target.fromArray(cameraPose.target);
+        element.dataset.cameraShot = cameraPose.shot;
+        element.dataset.cameraBeatProgress = cameraPose.beatProgress.toFixed(3);
       }
 
       const palette = ENVIRONMENT_MOODS[currentScenario?.environment] || MOODS;
@@ -232,12 +214,15 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
           actorIndex: index
         });
         const base = car.root.userData.basePosition;
+        const heading = car.root.userData.baseRotationY ?? car.root.rotation.y;
         car.wheels.forEach((wheel) => {
           wheel.visible = true;
           wheel.scale.setScalar(pose.wheelScale);
+          wheel.rotation.x = pose.carWheelRotation;
         });
+        car.root.position.x = base.x + Math.sin(heading) * pose.carTravelDistance;
         car.root.position.y = pose.carPositionY;
-        car.root.position.z = base.z + pose.carPositionZOffset;
+        car.root.position.z = base.z + Math.cos(heading) * pose.carTravelDistance;
         car.root.rotation.x = pose.carRotationX;
         car.root.rotation.z = pose.carRotationZ;
       });
@@ -253,10 +238,13 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
         person.arms[1].rotation.x = pose.pedestrianArmRotationX[1];
         person.legs[0].rotation.x = pose.pedestrianLegRotationX[0];
         person.legs[1].rotation.x = pose.pedestrianLegRotationX[1];
+        const base = person.root.userData.basePosition;
         person.arms[0].rotation.z = pose.pedestrianArmRotationZ[0];
         person.arms[1].rotation.z = pose.pedestrianArmRotationZ[1];
         person.root.rotation.z = pose.pedestrianRootRotationZ;
+        person.root.position.x = base.x;
         person.root.position.y = pose.pedestrianPositionY;
+        person.root.position.z = base.z + pose.pedestrianTravelDistance;
       });
 
       if (city.windowMaterial) {
