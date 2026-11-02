@@ -30,7 +30,7 @@ The repository includes the first explicit computational model, `city-traffic-ki
 
 - Each city vehicle has a stable entity ID, position, heading, speed, and motion state.
 - Baseline travel and affected travel are calculated separately using bounded constant-deceleration and constant-acceleration kinematics.
-- Braking, stopped, and recovery phases are deterministic and seekable. The calculated state controls actual Three.js car position, body drop, and wheel visibility.
+- The five-second tire-loss event runs from 00:08 to 00:13. Tires reappear at 00:13 while modeled traffic remains stopped until the storyboard recovery beat at 00:33; braking, stopped, and recovery phases are deterministic and seekable. The calculated state controls actual Three.js car position, body drop, and wheel visibility.
 - Results include baseline-vs-scenario mean travel distance, travel-distance shortfall, and stopped vehicle-seconds.
 - The model uses **Three.js scene units**, not SI units. It is not a calibrated traffic forecast, vehicle-dynamics model, collision solver, or tire-road friction simulation.
 
@@ -38,7 +38,7 @@ The repository includes the first explicit computational model, `city-traffic-ki
 
 A separate Node server exposes `POST /api/interpret`. It calls a configured OpenAI-compatible chat-completions endpoint from the server, validates returned JSON against a strict allow-listed contract, and rejects unregistered simulation model IDs. Generated text is never treated as executable code.
 
-The browser never receives `AI_API_KEY`. The current AI contract can approve only the registered five-second city tire-loss model; other prompts must be returned as unsupported until a suitable model exists.
+The browser never receives `AI_API_KEY`. The current AI contract can approve only an explicitly described five-second city tire-disappearance scenario, with exact event and recovery timing. Other prompts must be returned as unsupported until a suitable model exists. It also requires the AI to identify needed simulation systems and disclose missing information/conflicts; a supported plan with unresolved information or unavailable systems is rejected.
 
 ### Run locally
 
