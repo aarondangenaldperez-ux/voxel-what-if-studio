@@ -108,8 +108,10 @@ test('ocean disappearance rule also recognizes seawater evaporation phrasing', (
 test('rubber simulation requires the supported five-second duration to be explicit', () => {
   const longEvent = buildScenarioPlan('What if rubber disappeared for 10 seconds?');
   const unspecified = buildScenarioPlan('What if all tires disappeared?');
+  const noDisappearance = buildScenarioPlan('What if we changed the tires every five seconds?');
   assert.equal(longEvent.supported, false);
   assert.equal(unspecified.supported, false);
+  assert.equal(noDisappearance.supported, false);
 });
 
 test('rubber simulation requires the supported five-second duration to be explicit', () => {
