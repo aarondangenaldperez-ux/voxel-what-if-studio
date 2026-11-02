@@ -1,6 +1,10 @@
 const MAX_TEXT = 500;
 const ALLOWED_ENTITY_TYPES = new Set(["vehicle", "tire", "road", "traffic-signal", "pedestrian", "environment"]);
 const ALLOWED_MODEL_ID = "city-traffic-kinematics-v1";
+const ALLOWED_REQUIRED_SYSTEMS = new Set([
+  "traffic-kinematics", "rigid-body-physics", "fluid-dynamics",
+  "orbital-mechanics", "agent-based-population", "environmental-dynamics", "unknown"
+]);
 
 function cleanText(value, label, maxLength = MAX_TEXT) {
   if (typeof value !== "string") throw new TypeError(label + " must be text.");
@@ -67,15 +71,32 @@ export function validateAIInterpretation(raw, originalPrompt) {
     }
     const startSeconds = Number(raw.event.startSeconds);
     const durationSeconds = Number(raw.event.durationSeconds);
-    // This is the currently authored and tested event window. The planner may
-    // identify it, but cannot silently alter the model's scientific contract.
-    if (startSeconds !== 8 || durationSeconds !== 5) {
-      throw new RangeError("The current tire-loss model supports only the validated 8-to-13-second event window.");
+    const recoveryStartSeconds = Number(raw.event.recoveryStartSeconds);
+    // The user must explicitly state the supported duration. The model cannot
+    // silently fill missing scenario parameters or accept AI-altered timings.
+    const mentionsTireLoss = /\\b(?:rubber|tires?|tyres?)\\b/i.test(prompt);
+    const statesFiveSeconds = /\\b(?:5|five)\\s*-?\\s*(?:seconds?|secs?|s)\\b/i.test(prompt);
+    if (!mentionsTireLoss || !statesFiveSeconds) {
+      throw new RangeError("The prompt must explicitly describe tire/rubber loss for five seconds.");
     }
-    event = { type: "rubber-loss", startSeconds, durationSeconds };
+    if (startSeconds !== 8 || durationSeconds !== 5 || recoveryStartSeconds !== 33) {
+      throw new RangeError("The registered model requires event 8–13 seconds and traffic recovery at 33 seconds.");
+    }
+    event = { type: "rubber-loss", startSeconds, durationSeconds, recoveryStartSeconds };
   } else if (simulationModelId !== null || raw.event !== null) {
     throw new TypeError("Unsupported scenarios must not request execution of an unregistered model.");
   }
+
+  const requiredSystems = Array.isArray(raw.requiredSystems) ? raw.requiredSystems : [];
+  if (requiredSystems.length > 8) throw new RangeError("The AI plan requires too many simulation systems.");
+  const safeRequiredSystems = requiredSystems.map((system, index) => {
+    if (!ALLOWED_REQUIRED_SYSTEMS.has(system?.id)) throw new TypeError("Unknown required simulation system at index " + index + ".");
+    return Object.freeze({
+      id: system.id,
+      available: system.id === "traffic-kinematics",
+      reason: cleanText(system.reason, "required system reason", 220)
+    });
+  });
 
   return Object.freeze({
     schemaVersion: 1,
@@ -88,6 +109,9 @@ export function validateAIInterpretation(raw, originalPrompt) {
     entities: Object.freeze(safeEntities),
     variables: Object.freeze(safeVariables),
     relationships: Object.freeze(textList(raw.relationships || [], "relationships", 12)),
+    requiredSystems: Object.freeze(safeRequiredSystems),
+    missingInformation: Object.freeze(textList(raw.missingInformation || [], "missingInformation", 8)),
+    conflicts: Object.freeze(textList(raw.conflicts || [], "conflicts", 8)),
     facts: Object.freeze(textList(raw.facts || [], "facts", 8)),
     assumptions: Object.freeze(textList(raw.assumptions || [], "assumptions", 10)),
     limitations: Object.freeze(textList(raw.limitations || [], "limitations", 10))
