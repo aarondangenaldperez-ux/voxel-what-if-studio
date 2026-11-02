@@ -239,7 +239,7 @@ export default function App() {
         beats,
         width: 1080,
         height: 1920,
-        fps: 30,
+        fps: 24,
         onTime: (elapsed, beat) => {
           const timelineTime = Math.max(0, Math.min(scenario.durationSeconds, elapsed));
           playheadRef.current = timelineTime;
@@ -271,7 +271,7 @@ export default function App() {
       anchor.click();
       anchor.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 60000);
-      setExportMessage('VIDEO GENERATED · ' + extension.toUpperCase() + ' · 1080 × 1920 · 30 FPS · CAPTIONS INCLUDED');
+      setExportMessage('VIDEO GENERATED · ' + extension.toUpperCase() + ' · 1080 × 1920 · 24 FPS · CAPTIONS INCLUDED');
     } catch (error) {
       setExportError(error?.message || 'The video render failed. No video file was produced.');
       setExportMessage('');
@@ -416,7 +416,7 @@ export default function App() {
               <Video size={16} />
               {exporting ? 'RENDERING VIDEO · ' + Math.round(exportProgress * 100) + '%' : 'RENDER FULL VERTICAL VIDEO'}
             </button>
-            <div className="video-export-meta">1080 × 1920 · 30 FPS · STORY CAPTIONS · MP4 WHEN SUPPORTED, OTHERWISE WEBM</div>
+            <div className="video-export-meta">1080 × 1920 · 24 FPS · STORY CAPTIONS · MP4 WHEN SUPPORTED, OTHERWISE WEBM</div>
             {exporting && <div className="video-export-track"><span style={{ width: Math.round(exportProgress * 100) + '%' }} /></div>}
             {exporting && <div className="video-export-meta">Keep this tab open and visible while the real-time render runs.</div>}
             {exportMessage && <div className="video-export-success">{exportMessage}</div>}
