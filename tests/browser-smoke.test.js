@@ -279,7 +279,10 @@ test("production app renders WebGL, switches environments, and exports real file
       "the full app export should decode at 1920 pixels high");
     assert.ok(exportMetadata.duration >= 54 && exportMetadata.duration <= 58,
       "the full app export should decode to approximately the requested 56-second duration");
-    assert.match(exportMetadata.type, /^video\\/(mp4|webm)/,
+    assert.ok(
+      exportMetadata.type.startsWith("video/mp4") || exportMetadata.type.startsWith("video/webm"),
+      "the full app export should use a real MP4 or WebM media type"
+    );
       "the full app export should use a real MP4 or WebM media type");
 
     assert.deepEqual(pageErrors, [], "browser should not report uncaught page errors");
