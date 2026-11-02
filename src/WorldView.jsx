@@ -4,6 +4,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { buildEnvironment } from './engine/environmentBuilders.js';
 import { buildVoxelPresenter } from './engine/voxelPresenter.js';
 import { getCinematicCameraPose } from './engine/cameraDirector.js';
+import { createCityTrafficSimulation } from './engine/simulation/cityTrafficModel.js';
 import {
   getBeatWindow,
   getCityActorPoseAtTime,
@@ -28,12 +29,12 @@ const MOODS = {
   aftermath: { sky: 0x14242b, fog: 0x1b2c32 }
 };
 
-export default function WorldView({ scenario, beat, playing, cameraMode = 'auto', lighting = 100, presenterVisible = true, captureRef, timelineRef }) {
+export default function WorldView({ scenario, beat, playing, cameraMode = 'auto', lighting = 100, presenterVisible = true, captureRef, timelineRef, onSimulationReport }) {
   const host = useRef(null);
-  const state = useRef({ scenario, beat, playing, cameraMode, lighting, presenterVisible, timelineRef });
+  const state = useRef({ scenario, beat, playing, cameraMode, lighting, presenterVisible, timelineRef, onSimulationReport });
 
   useEffect(() => {
-    state.current = { scenario, beat, playing, cameraMode, lighting, presenterVisible, timelineRef };
+    state.current = { scenario, beat, playing, cameraMode, lighting, presenterVisible, timelineRef, onSimulationReport };
   }, [scenario, beat, playing, cameraMode, lighting, presenterVisible, timelineRef]);
 
   useEffect(() => {
@@ -89,6 +90,21 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
     scene.add(fillLight);
 
     const city = buildEnvironment(scene, scenario?.environment || 'urban');
+    const rubberWindow = getBeatWindow(scenario?.beats || [], 'rubber-loss');
+    const trafficSimulation = scenario?.id === 'rubber'
+      ? createCityTrafficSimulation({
+          vehicles: city.cars.map((car) => ({
+            id: car.id,
+            x: car.root.userData.basePosition.x,
+            z: car.root.userData.basePosition.z,
+            heading: car.root.userData.baseRotationY
+          })),
+          durationSeconds: scenario.durationSeconds,
+          eventStartSeconds: rubberWindow?.startSeconds ?? 8,
+          eventDurationSeconds: rubberWindow?.durationSeconds ?? 5
+        })
+      : null;
+    state.current.onSimulationReport?.(trafficSimulation?.summary || null);
     const presenter = buildVoxelPresenter(scene, { position: [0, 0, 9], scale: 1.05 });
     const skyFrom = new THREE.Color();
     const skyTarget = new THREE.Color();
@@ -147,6 +163,7 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
 
       element.dataset.timelineSeconds = elapsed.toFixed(3);
       element.dataset.activeEvent = event;
+      element.dataset.simulationModel = trafficSimulation?.modelId || 'visual-only';
       const lightScale = THREE.MathUtils.clamp(Number(current.lighting) || 100, 30, 160) / 100;
       hemisphereLight.intensity = 1.9 * lightScale;
       keyLight.intensity = 3.0 * lightScale;
@@ -212,7 +229,30 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
       });
       const powerIntensity = primaryScenePose.powerIntensity;
 
+      const trafficFrame = trafficSimulation?.sampleAt(elapsed);
+      if (trafficFrame) {
+        element.dataset.simulationTime = trafficFrame.timeSeconds.toFixed(3);
+        element.dataset.simulatedVehicleCount = String(trafficFrame.vehicles.length);
+        element.dataset.tireLossActive = String(trafficFrame.eventActive);
+      }
       city.cars.forEach((car, index) => {
+        if (trafficFrame) {
+          const vehicleState = trafficFrame.vehicles.find((vehicle) => vehicle.id === car.id);
+          if (!vehicleState) return;
+          // The computational model is the source of truth for vehicle transforms
+          // and tire presence. The renderer only maps entity state to Three.js.
+          car.root.position.set(vehicleState.x, vehicleState.bodyDrop, vehicleState.z);
+          car.root.rotation.x = 0;
+          car.root.rotation.z = 0;
+          car.wheels.forEach((wheel) => {
+            wheel.visible = vehicleState.wheelsPresent;
+            wheel.rotation.x = vehicleState.travelDistance;
+          });
+          car.root.userData.simulationSpeed = vehicleState.speed;
+          car.root.userData.simulationState = vehicleState.state;
+          return;
+        }
+
         const pose = getCityActorPoseAtTime({
           elapsedSeconds: elapsed,
           scenarioId: currentScenario?.id,
@@ -321,7 +361,7 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
         element.removeChild(renderer.domElement);
       }
     };
-  }, [scenario?.environment, captureRef]);
+  }, [scenario?.environment, scenario?.id, captureRef]);
 
   return <div className="world-view" ref={host} data-environment={scenario?.environment || 'urban'} aria-label="Interactive animated 3D scenario preview" />;
 }
