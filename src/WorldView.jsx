@@ -114,6 +114,7 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
     const fogTarget = new THREE.Color();
     let frameId = 0;
     let exportSize = null;
+    let captureActive = false;
 
     function resize() {
       const width = Math.max(1, exportSize?.width || element.clientWidth);
@@ -131,6 +132,9 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
       captureRef.current = {
         canvas: renderer.domElement,
         setOutputSize(width, height) {
+          captureActive = true;
+          if (frameId) cancelAnimationFrame(frameId);
+          frameId = 0;
           controls.enabled = false;
           renderer.setPixelRatio(1);
           exportSize = { width, height };
@@ -146,6 +150,8 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
           renderer.setPixelRatio(previewPixelRatio);
           controls.enabled = true;
           resize();
+          captureActive = false;
+          if (!frameId) frameId = requestAnimationFrame(animate);
         }
       };
     }
@@ -317,6 +323,10 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
     }
 
     function animate() {
+      if (captureActive) {
+        frameId = 0;
+        return;
+      }
       frameId = requestAnimationFrame(animate);
       renderScene();
     }
