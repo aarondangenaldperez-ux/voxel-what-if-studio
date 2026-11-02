@@ -140,6 +140,60 @@ test("production app renders WebGL, switches environments, and exports real file
       }
     }
 
+    assert.equal(await page.locator(".beat").count(), 8,
+      "the rubber scenario should use shorter, deliberate cinematic beats");
+    await page.waitForFunction(() => {
+      const view = document.querySelector(".world-view");
+      return view?.dataset.simulationModel === "city-traffic-kinematics-v1" &&
+        view?.dataset.simulatedVehicleCount === "3";
+    });
+    await page.waitForFunction(() => document.querySelector(".simulation-results"));
+    assert.equal(await page.locator(".simulation-results").count(), 1,
+      "the active simulation should publish its computed results to the UI");
+
+    await page.locator(".beat").nth(1).click();
+    await page.waitForFunction(() => {
+      const view = document.querySelector(".world-view");
+      return Number(view?.dataset.simulationTime) >= 8 &&
+        view?.dataset.tireLossActive === "true" &&
+        view?.dataset.simulatedVehicleWheels === "false";
+    });
+    assert.equal(await page.locator(".world-view").getAttribute("data-simulated-vehicle-state"), "braking",
+      "the visualized vehicle should be in the computed braking state at event onset");
+
+    await page.locator(".beat").nth(2).click();
+    await page.waitForFunction(() => {
+      const view = document.querySelector(".world-view");
+      return Number(view?.dataset.simulationTime) >= 13 &&
+        view?.dataset.tireLossActive === "false" &&
+        view?.dataset.simulatedVehicleWheels === "true";
+    });
+    await page.locator(".play-button").click();
+    await page.waitForFunction(
+      () => Number(document.querySelector(".world-view")?.dataset.timelineSeconds) >= 14.25,
+      null,
+      { timeout: 5000 }
+    );
+    await page.locator(".play-button").click();
+    const detailCamera = page.locator(".world-view");
+    const detailDistance = Number(await detailCamera.getAttribute("data-camera-distance"));
+    const detailTargetX = Number(await detailCamera.getAttribute("data-camera-target-x"));
+    const detailTargetZ = Number(await detailCamera.getAttribute("data-camera-target-z"));
+    assert.ok(detailDistance > 6.5 && detailDistance < 9,
+      "the rubber detail shot should frame the affected vehicle at a readable distance");
+    assert.ok(Math.abs(detailTargetX - 1.55) < 0.35 && Math.abs(detailTargetZ - 5.86) < 0.35,
+      "the detail camera should point at the affected vehicle, not a building facade");
+
+    await page.locator(".beat").nth(5).click();
+    await page.locator(".play-button").click();
+    await page.waitForFunction(() => {
+      const view = document.querySelector(".world-view");
+      return Number(view?.dataset.simulationTime) >= 33.5 &&
+        view?.dataset.simulatedVehicleState === "recovering" &&
+        Number(view?.dataset.simulatedVehicleSpeed) > 0 &&
+        view?.dataset.simulatedVehicleWheels === "true";
+    }, null, { timeout: 5000 });
+    await page.locator(".play-button").click();
 
     const downloadPromise = page.waitForEvent("download");
     await page.locator(".export-button").click();
@@ -200,6 +254,77 @@ test("production app renders WebGL, switches environments, and exports real file
     await videoDownload.saveAs(videoPath);
     const videoBytes = await readFile(videoPath);
     assert.ok(videoBytes.byteLength > 0, "the full app export should produce a non-empty downloadable video");
+
+    // Decode real exported frames: non-empty bytes alone allowed the earlier
+    // camera-framing and long-static-shot regressions to pass CI.
+    const mediaQuality = await page.evaluate(async ({ base64, mimeType }) => {
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let index = 0; index < binary.length; index += 1) {
+        bytes[index] = binary.charCodeAt(index);
+      }
+      const url = URL.createObjectURL(new Blob([bytes], { type: mimeType }));
+      const video = document.createElement("video");
+      video.muted = true;
+      video.playsInline = true;
+      video.src = url;
+      await new Promise((resolve, reject) => {
+        video.onloadedmetadata = resolve;
+        video.onerror = () => reject(new Error("The exported video could not be decoded."));
+      });
+      const canvas = document.createElement("canvas");
+      canvas.width = 80;
+      canvas.height = 144;
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      const times = [2, 10, 16, 24, 30, 36, 44, 52];
+      const frames = [];
+      for (const time of times) {
+        await new Promise((resolve, reject) => {
+          const timeout = window.setTimeout(() => reject(new Error("Timed out decoding a sampled export frame.")), 10000);
+          const onSeeked = () => {
+            window.clearTimeout(timeout);
+            resolve();
+          };
+          video.addEventListener("seeked", onSeeked, { once: true });
+          video.currentTime = Math.min(time, Math.max(0, video.duration - 0.1));
+        });
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        frames.push(new Uint8Array(context.getImageData(0, 0, canvas.width, canvas.height).data));
+      }
+      const differences = [];
+      for (let frame = 1; frame < frames.length; frame += 1) {
+        let changed = 0;
+        let samples = 0;
+        for (let pixel = 0; pixel < frames[frame].length; pixel += 4 * 5) {
+          const delta = Math.max(
+            Math.abs(frames[frame][pixel] - frames[frame - 1][pixel]),
+            Math.abs(frames[frame][pixel + 1] - frames[frame - 1][pixel + 1]),
+            Math.abs(frames[frame][pixel + 2] - frames[frame - 1][pixel + 2])
+          );
+          if (delta > 14) changed += 1;
+          samples += 1;
+        }
+        differences.push(changed / samples);
+      }
+      URL.revokeObjectURL(url);
+      return {
+        width: video.videoWidth,
+        height: video.videoHeight,
+        duration: video.duration,
+        differences
+      };
+    }, {
+      base64: videoBytes.toString("base64"),
+      mimeType: videoDownload.suggestedFilename().endsWith(".mp4") ? "video/mp4" : "video/webm"
+    });
+    assert.equal(mediaQuality.width, 1080, "export should decode at the requested width");
+    assert.equal(mediaQuality.height, 1920, "export should decode at the requested portrait height");
+    assert.ok(mediaQuality.duration >= 54 && mediaQuality.duration <= 57,
+      "export should contain the complete 56-second storyboard (decoded duration: " +
+      mediaQuality.duration.toFixed(3) + "s)");
+    assert.ok(mediaQuality.differences.every((ratio) => ratio > 0.002),
+      "sampled story sections should contain visible frame changes, not long frozen shots: " +
+      mediaQuality.differences.map((value) => value.toFixed(4)).join(", "));
 
     assert.deepEqual(pageErrors, [], "browser should not report uncaught page errors");
   } finally {

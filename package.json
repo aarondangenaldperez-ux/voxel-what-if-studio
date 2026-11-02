@@ -5,9 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
+    "dev:api": "node server/index.js",
+    "start:api": "node server/index.js",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "node --test tests/scenarioEngine.test.js tests/environmentBuilders.test.js tests/videoExport.test.js tests/voxelPresenter.test.js tests/sceneTimeline.test.js",
+    "test": "node --test tests/scenarioEngine.test.js tests/environmentBuilders.test.js tests/videoExport.test.js tests/voxelPresenter.test.js tests/sceneTimeline.test.js tests/cameraDirector.test.js tests/cityTrafficModel.test.js tests/aiPlanContract.test.js tests/aiProvider.test.js tests/aiHttpServer.test.js",
     "test:browser": "node --test --test-concurrency=1 tests/browser-smoke.test.js tests/video-export-browser.test.js"
   },
   "dependencies": {

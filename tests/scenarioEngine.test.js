@@ -16,10 +16,13 @@ test('rubber prompt creates a 56-second storyboard with a real five-second rubbe
   const plan = buildScenarioPlan('What if all rubber disappeared for 5 seconds?');
   assert.equal(plan.id, 'rubber');
   assert.equal(plan.supported, true);
-  assert.equal(plan.beats.length, 5);
+  assert.equal(plan.beats.length, 8);
   assertFiveSecondInterruption(plan, 'rubber-loss');
   assert.equal(plan.beats[2].event, 'traffic-paused');
-  assert.equal(plan.beats[4].event, 'restored');
+  assert.equal(plan.beats[4].camera, 'overview');
+  assert.equal(plan.beats[5].event, 'recovery');
+  assert.equal(plan.beats[7].event, 'restored');
+  assert.equal(plan.beats[5].time, '00:33');
 });
 
 test('gravity prompt creates a distinct five-second weightlessness sequence', () => {
@@ -101,3 +104,13 @@ test('ocean disappearance rule also recognizes seawater evaporation phrasing', (
   assert.equal(plan.id, 'ocean');
   assert.equal(plan.supported, true);
 });
+
+test('rubber simulation requires the supported five-second duration to be explicit', () => {
+  const longEvent = buildScenarioPlan('What if rubber disappeared for 10 seconds?');
+  const unspecified = buildScenarioPlan('What if all tires disappeared?');
+  const noDisappearance = buildScenarioPlan('What if we changed the tires every five seconds?');
+  assert.equal(longEvent.supported, false);
+  assert.equal(unspecified.supported, false);
+  assert.equal(noDisappearance.supported, false);
+});
+

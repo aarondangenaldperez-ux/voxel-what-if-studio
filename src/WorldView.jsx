@@ -3,27 +3,14 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { buildEnvironment } from './engine/environmentBuilders.js';
 import { buildVoxelPresenter } from './engine/voxelPresenter.js';
+import { getCinematicCameraPose } from './engine/cameraDirector.js';
+import { createCityTrafficSimulation } from './engine/simulation/cityTrafficModel.js';
 import {
   getBeatWindow,
   getCityActorPoseAtTime,
   getTimelinePosition,
   smoothStep01
 } from './engine/sceneTimeline.js';
-
-const CAMERA_SHOTS = {
-  establish: { position: [22, 19, 25], target: [0, 1, 0] },
-  event: { position: [4, 6, 19], target: [0, 2.55, 8.5] },
-  detail: { position: [0, 4.3, 15.5], target: [0, 3.05, 8.7] },
-  aftermath: { position: [-9, 8, 19], target: [0, 2.45, 7.5] },
-  resolve: { position: [10, 7, 22], target: [0, 2.5, 7.5] }
-};
-
-const RUBBER_CAMERA_SHOTS = {
-  ...CAMERA_SHOTS,
-  event: { position: [14, 8, 18], target: [0, 0.8, 0] },
-  detail: { position: [-9.8, 4.6, 8.8], target: [-8.2, 0.7, 1.55] },
-  aftermath: { position: [-13, 7.5, 15], target: [0, 0.9, 0] }
-};
 
 const ENVIRONMENT_MOODS = {
   ocean: { calm:{sky:0x06344a,fog:0x0a4050},shock:{sky:0x0a5366,fog:0x0a4050},warning:{sky:0x184a58,fog:0x0a4050},chaos:{sky:0x123b50,fog:0x0a4050},aftermath:{sky:0x06344a,fog:0x0a4050} },
@@ -42,12 +29,12 @@ const MOODS = {
   aftermath: { sky: 0x14242b, fog: 0x1b2c32 }
 };
 
-export default function WorldView({ scenario, beat, playing, cameraMode = 'auto', lighting = 100, presenterVisible = true, captureRef, timelineRef }) {
+export default function WorldView({ scenario, beat, playing, cameraMode = 'auto', lighting = 100, presenterVisible = true, captureRef, timelineRef, onSimulationReport }) {
   const host = useRef(null);
-  const state = useRef({ scenario, beat, playing, cameraMode, lighting, presenterVisible, timelineRef });
+  const state = useRef({ scenario, beat, playing, cameraMode, lighting, presenterVisible, timelineRef, onSimulationReport });
 
   useEffect(() => {
-    state.current = { scenario, beat, playing, cameraMode, lighting, presenterVisible, timelineRef };
+    state.current = { scenario, beat, playing, cameraMode, lighting, presenterVisible, timelineRef, onSimulationReport };
   }, [scenario, beat, playing, cameraMode, lighting, presenterVisible, timelineRef]);
 
   useEffect(() => {
@@ -58,8 +45,8 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
     scene.background = new THREE.Color(MOODS.calm.sky);
     scene.fog = new THREE.Fog(MOODS.calm.fog, 22, 58);
 
-    const camera = new THREE.PerspectiveCamera(43, 1, 0.1, 120);
-    camera.position.set(22, 19, 25);
+    const camera = new THREE.PerspectiveCamera(52, 1, 0.1, 160);
+    camera.position.set(0, 25, 43);
 
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
@@ -103,11 +90,24 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
     scene.add(fillLight);
 
     const city = buildEnvironment(scene, scenario?.environment || 'urban');
+    const rubberWindow = getBeatWindow(scenario?.beats || [], 'rubber-loss');
+    const recoveryWindow = getBeatWindow(scenario?.beats || [], 'recovery');
+    const trafficSimulation = scenario?.id === 'rubber'
+      ? createCityTrafficSimulation({
+          vehicles: city.cars.map((car) => ({
+            id: car.id,
+            x: car.root.userData.basePosition.x,
+            z: car.root.userData.basePosition.z,
+            heading: car.root.userData.baseRotationY
+          })),
+          durationSeconds: scenario.durationSeconds,
+          eventStartSeconds: rubberWindow?.startSeconds ?? 8,
+          eventDurationSeconds: rubberWindow?.durationSeconds ?? 5,
+          recoveryStartSeconds: recoveryWindow?.startSeconds ?? (rubberWindow?.endSeconds ?? 13)
+        })
+      : null;
+    state.current.onSimulationReport?.(trafficSimulation?.summary || null);
     const presenter = buildVoxelPresenter(scene, { position: [0, 0, 9], scale: 1.05 });
-    const cameraPosition = new THREE.Vector3();
-    const cameraTarget = new THREE.Vector3();
-    const cameraFromPosition = new THREE.Vector3();
-    const cameraFromTarget = new THREE.Vector3();
     const skyFrom = new THREE.Color();
     const skyTarget = new THREE.Color();
     const fogFrom = new THREE.Color();
@@ -136,6 +136,11 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
           exportSize = { width, height };
           resize();
         },
+        renderAtTime(seconds) {
+          const time = Math.max(0, Number(seconds) || 0);
+          if (state.current.timelineRef) state.current.timelineRef.current = time;
+          renderScene(time);
+        },
         resetOutputSize() {
           exportSize = null;
           renderer.setPixelRatio(previewPixelRatio);
@@ -145,10 +150,11 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
       };
     }
 
-    function animate() {
-      frameId = requestAnimationFrame(animate);
+    function renderScene(elapsedOverride) {
       const current = state.current;
-      const elapsed = Math.max(0, Number(current.timelineRef?.current) || 0);
+      const elapsed = Number.isFinite(Number(elapsedOverride))
+        ? Math.max(0, Number(elapsedOverride))
+        : Math.max(0, Number(current.timelineRef?.current) || 0);
       const currentScenario = current.scenario;
       const beats = currentScenario?.beats || [];
       const timeline = getTimelinePosition(beats, elapsed);
@@ -159,6 +165,7 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
 
       element.dataset.timelineSeconds = elapsed.toFixed(3);
       element.dataset.activeEvent = event;
+      element.dataset.simulationModel = trafficSimulation?.modelId || 'visual-only';
       const lightScale = THREE.MathUtils.clamp(Number(current.lighting) || 100, 30, 160) / 100;
       hemisphereLight.intensity = 1.9 * lightScale;
       keyLight.intensity = 3.0 * lightScale;
@@ -172,15 +179,15 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
       element.dataset.cameraMode = manualCamera ? 'orbit' : 'auto';
       element.dataset.orbitControls = String(controls.enabled);
       if (!manualCamera) {
-        const shotLibrary = currentScenario?.id === 'rubber' ? RUBBER_CAMERA_SHOTS : CAMERA_SHOTS;
-        const previousShot = shotLibrary[previousBeat.camera] || shotLibrary.establish;
-        const cameraShot = shotLibrary[currentBeat.camera] || shotLibrary.establish;
-        cameraFromPosition.fromArray(previousShot.position);
-        cameraFromTarget.fromArray(previousShot.target);
-        cameraPosition.fromArray(cameraShot.position);
-        cameraTarget.fromArray(cameraShot.target);
-        camera.position.copy(cameraFromPosition).lerp(cameraPosition, transition);
-        controls.target.copy(cameraFromTarget).lerp(cameraTarget, transition);
+        const cameraPose = getCinematicCameraPose({
+          beats,
+          elapsedSeconds: elapsed,
+          scenarioId: currentScenario?.id
+        });
+        camera.position.fromArray(cameraPose.position);
+        controls.target.fromArray(cameraPose.target);
+        element.dataset.cameraShot = cameraPose.shot;
+        element.dataset.cameraBeatProgress = cameraPose.beatProgress.toFixed(3);
       }
 
       const palette = ENVIRONMENT_MOODS[currentScenario?.environment] || MOODS;
@@ -224,7 +231,33 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
       });
       const powerIntensity = primaryScenePose.powerIntensity;
 
+      const trafficFrame = trafficSimulation?.sampleAt(elapsed);
+      if (trafficFrame) {
+        element.dataset.simulationTime = trafficFrame.timeSeconds.toFixed(3);
+        element.dataset.simulatedVehicleCount = String(trafficFrame.vehicles.length);
+        element.dataset.tireLossActive = String(trafficFrame.eventActive);
+        element.dataset.simulatedVehicleState = trafficFrame.vehicles[0]?.state || "unknown";
+        element.dataset.simulatedVehicleWheels = String(Boolean(trafficFrame.vehicles[0]?.wheelsPresent));
+        element.dataset.simulatedVehicleSpeed = String(trafficFrame.vehicles[0]?.speed ?? 0);
+      }
       city.cars.forEach((car, index) => {
+        if (trafficFrame) {
+          const vehicleState = trafficFrame.vehicles.find((vehicle) => vehicle.id === car.id);
+          if (!vehicleState) return;
+          // The computational model is the source of truth for vehicle transforms
+          // and tire presence. The renderer only maps entity state to Three.js.
+          car.root.position.set(vehicleState.x, -vehicleState.bodyDrop, vehicleState.z);
+          car.root.rotation.x = 0;
+          car.root.rotation.z = 0;
+          car.wheels.forEach((wheel) => {
+            wheel.visible = vehicleState.wheelsPresent;
+            wheel.rotation.x = vehicleState.wheelRotation;
+          });
+          car.root.userData.simulationSpeed = vehicleState.speed;
+          car.root.userData.simulationState = vehicleState.state;
+          return;
+        }
+
         const pose = getCityActorPoseAtTime({
           elapsedSeconds: elapsed,
           scenarioId: currentScenario?.id,
@@ -232,12 +265,15 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
           actorIndex: index
         });
         const base = car.root.userData.basePosition;
+        const heading = car.root.userData.baseRotationY ?? car.root.rotation.y;
         car.wheels.forEach((wheel) => {
           wheel.visible = true;
           wheel.scale.setScalar(pose.wheelScale);
+          wheel.rotation.x = pose.carWheelRotation;
         });
+        car.root.position.x = base.x + Math.sin(heading) * pose.carTravelDistance;
         car.root.position.y = pose.carPositionY;
-        car.root.position.z = base.z + pose.carPositionZOffset;
+        car.root.position.z = base.z + Math.cos(heading) * pose.carTravelDistance;
         car.root.rotation.x = pose.carRotationX;
         car.root.rotation.z = pose.carRotationZ;
       });
@@ -253,10 +289,13 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
         person.arms[1].rotation.x = pose.pedestrianArmRotationX[1];
         person.legs[0].rotation.x = pose.pedestrianLegRotationX[0];
         person.legs[1].rotation.x = pose.pedestrianLegRotationX[1];
+        const base = person.root.userData.basePosition;
         person.arms[0].rotation.z = pose.pedestrianArmRotationZ[0];
         person.arms[1].rotation.z = pose.pedestrianArmRotationZ[1];
         person.root.rotation.z = pose.pedestrianRootRotationZ;
+        person.root.position.x = base.x;
         person.root.position.y = pose.pedestrianPositionY;
+        person.root.position.z = base.z + pose.pedestrianTravelDistance;
       });
 
       if (city.windowMaterial) {
@@ -271,7 +310,15 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
       });
 
       controls.update();
+      element.dataset.cameraDistance = camera.position.distanceTo(controls.target).toFixed(2);
+      element.dataset.cameraTargetX = controls.target.x.toFixed(2);
+      element.dataset.cameraTargetZ = controls.target.z.toFixed(2);
       renderer.render(scene, camera);
+    }
+
+    function animate() {
+      frameId = requestAnimationFrame(animate);
+      renderScene();
     }
 
     const renderStatus = document.createElement('div');
@@ -319,7 +366,7 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
         element.removeChild(renderer.domElement);
       }
     };
-  }, [scenario?.environment, captureRef]);
+  }, [scenario?.environment, scenario?.id, captureRef]);
 
   return <div className="world-view" ref={host} data-environment={scenario?.environment || 'urban'} aria-label="Interactive animated 3D scenario preview" />;
 }

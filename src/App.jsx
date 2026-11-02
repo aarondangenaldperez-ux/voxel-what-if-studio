@@ -6,6 +6,9 @@ import {
 import { getBeatAtTime, recordCanvasVideo } from './engine/videoExport.js';
 const WorldView = lazy(() => import('./WorldView.jsx'));
 import { buildScenarioPlan } from './engine/scenarioEngine.js';
+import SimulationInsights from './SimulationInsights.jsx';
+import AIInterpretation from './AIInterpretation.jsx';
+import { validateAIInterpretation } from './engine/ai/planContract.js';
 import { ENVIRONMENT_LABELS } from './engine/environmentCatalog.js';
 
 function waitForAnimationFrames(signal, frameCount = 2) {
@@ -58,6 +61,10 @@ export default function App() {
   const [exportProgress, setExportProgress] = useState(0);
   const [exportMessage, setExportMessage] = useState('');
   const [exportError, setExportError] = useState('');
+  const [simulationReport, setSimulationReport] = useState(null);
+  const [aiPlan, setAiPlan] = useState(null);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiError, setAiError] = useState('');
   const captureRef = useRef(null);
 
   const beats = scenario.beats;
@@ -101,10 +108,56 @@ export default function App() {
   const generateStory = () => {
     const nextScenario = buildScenarioPlan(question);
     setScenario(nextScenario);
+    setAiPlan(null);
+    setAiError('');
     playheadRef.current = 0;
     setPlayheadSeconds(0);
     setActiveBeatIndex(0);
     setPlaying(false);
+  };
+
+  const analyzeWithAI = async () => {
+    const prompt = question.trim();
+    setAiBusy(true);
+    setAiError('');
+    setAiPlan(null);
+    try {
+      const aiApiBase = import.meta.env.VITE_AI_API_URL || '';
+      const response = await fetch(aiApiBase + '/api/interpret', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'AI interpretation service is unavailable.');
+      const plan = validateAIInterpretation(payload.plan, prompt);
+      const nextScenario = buildScenarioPlan(prompt);
+      if (plan?.classification === 'supported') {
+        const eventIndex = nextScenario.beats.findIndex((item) => item.event === plan.event?.type);
+        const eventStart = eventIndex < 0
+          ? -1
+          : nextScenario.beats.slice(0, eventIndex).reduce((sum, item) => sum + item.durationSeconds, 0);
+        if (nextScenario.id !== 'rubber' ||
+          plan.simulationModelId !== 'city-traffic-kinematics-v1' ||
+          eventStart !== plan.event.startSeconds ||
+          nextScenario.beats[eventIndex]?.durationSeconds !== plan.event.durationSeconds ||
+          nextScenario.beats.findIndex((item) => item.event === 'recovery') < 0 ||
+          nextScenario.beats.slice(0, nextScenario.beats.findIndex((item) => item.event === 'recovery'))
+            .reduce((sum, item) => sum + item.durationSeconds, 0) !== plan.event.recoveryStartSeconds) {
+          throw new Error('The AI plan does not match the registered local simulation contract. It was not executed.');
+        }
+      }
+      setScenario(nextScenario);
+      playheadRef.current = 0;
+      setPlayheadSeconds(0);
+      setActiveBeatIndex(0);
+      setPlaying(false);
+      setAiPlan(plan);
+    } catch (error) {
+      setAiError(error?.message || 'AI interpretation failed. The deterministic simulation remains available.');
+    } finally {
+      setAiBusy(false);
+    }
   };
 
   const reset = () => {
@@ -176,16 +229,17 @@ export default function App() {
       let lastUiTime = -Infinity;
       const blob = await recordCanvasVideo({
         sourceCanvas: target.canvas,
+        renderSourceFrame: (elapsed) => target.renderAtTime(elapsed),
         prepareSourceCanvas: async ({ signal }) => {
-          setExportMessage("Preparing 1080 × 1920 video render…");
-          target.setOutputSize(1080, 1920);
+          setExportMessage("Preparing 900 × 1600 scene render for 1080 × 1920 output…");
+          target.setOutputSize(900, 1600);
           await waitForAnimationFrames(signal, 2);
         },
         durationSeconds: scenario.durationSeconds,
         beats,
         width: 1080,
         height: 1920,
-        fps: 30,
+        fps: 18,
         onTime: (elapsed, beat) => {
           const timelineTime = Math.max(0, Math.min(scenario.durationSeconds, elapsed));
           playheadRef.current = timelineTime;
@@ -217,7 +271,7 @@ export default function App() {
       anchor.click();
       anchor.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 60000);
-      setExportMessage('VIDEO GENERATED · ' + extension.toUpperCase() + ' · 1080 × 1920 · 30 FPS · CAPTIONS INCLUDED');
+      setExportMessage('VIDEO GENERATED · ' + extension.toUpperCase() + ' · 1080 × 1920 OUTPUT · 18 FPS · 900 × 1600 SCENE RENDER');
     } catch (error) {
       setExportError(error?.message || 'The video render failed. No video file was produced.');
       setExportMessage('');
@@ -253,7 +307,11 @@ export default function App() {
           <textarea
             id="whatif"
             value={question}
-            onChange={(event) => setQuestion(event.target.value)}
+            onChange={(event) => {
+              setQuestion(event.target.value);
+              setAiPlan(null);
+              setAiError('');
+            }}
             disabled={exporting}
             maxLength={150}
             placeholder="What if..."
@@ -265,6 +323,10 @@ export default function App() {
           <button className="generate-button" onClick={generateStory} disabled={exporting}>
             <WandSparkles size={15} /> GENERATE STORYBOARD
           </button>
+          <button className="ai-analyze-button" onClick={analyzeWithAI} disabled={exporting || aiBusy || !question.trim()}>
+            <Sparkles size={15} /> {aiBusy ? 'ANALYZING WITH AI…' : 'INTERPRET WITH AI'}
+          </button>
+          <AIInterpretation plan={aiPlan} error={aiError} busy={aiBusy} />
           <div className="engine-status">
             <span className={scenario.supported ? 'engine-indicator mapped' : 'engine-indicator'} />
             <span>{scenario.supported ? 'MAPPED EVENT · ' + scenario.label : 'UNMAPPED · ' + (ENVIRONMENT_LABELS[scenario.environment] || 'CITY') + ' ENVIRONMENT'}</span>
@@ -303,7 +365,7 @@ export default function App() {
 
           <div className="viewport">
             <Suspense fallback={<div className="viewport-loading">LOADING 3D SCENE ENGINE…</div>}>
-              <WorldView scenario={scenario} beat={active} playing={playing} cameraMode={cameraMode} lighting={lighting} presenterVisible={presenterVisible} captureRef={captureRef} timelineRef={playheadRef} />
+              <WorldView scenario={scenario} beat={active} playing={playing} cameraMode={cameraMode} lighting={lighting} presenterVisible={presenterVisible} captureRef={captureRef} timelineRef={playheadRef} onSimulationReport={setSimulationReport} />
             </Suspense>
             <div className="viewport-top">
               <span className="live-pill"><span /> 3D SCENE</span>
@@ -354,12 +416,13 @@ export default function App() {
               <Video size={16} />
               {exporting ? 'RENDERING VIDEO · ' + Math.round(exportProgress * 100) + '%' : 'RENDER FULL VERTICAL VIDEO'}
             </button>
-            <div className="video-export-meta">1080 × 1920 · 30 FPS · STORY CAPTIONS · MP4 WHEN SUPPORTED, OTHERWISE WEBM</div>
+            <div className="video-export-meta">1080 × 1920 OUTPUT · 18 FPS · 900 × 1600 SCENE RENDER · STORY CAPTIONS · MP4 WHEN SUPPORTED, OTHERWISE WEBM</div>
             {exporting && <div className="video-export-track"><span style={{ width: Math.round(exportProgress * 100) + '%' }} /></div>}
             {exporting && <div className="video-export-meta">Keep this tab open and visible while the real-time render runs.</div>}
             {exportMessage && <div className="video-export-success">{exportMessage}</div>}
             {exportError && <div className="video-export-error" role="alert">{exportError}</div>}
           </div>
+          <SimulationInsights report={simulationReport} />
           <div className="insight-card">
             <div className="insight-icon"><Lightbulb size={17} /></div>
             <div className="insight-copy">
