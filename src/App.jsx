@@ -7,6 +7,7 @@ import { getBeatAtTime, recordCanvasVideo } from './engine/videoExport.js';
 const WorldView = lazy(() => import('./WorldView.jsx'));
 import { buildScenarioPlan } from './engine/scenarioEngine.js';
 import SimulationInsights from './SimulationInsights.jsx';
+import AIInterpretation from './AIInterpretation.jsx';
 import { ENVIRONMENT_LABELS } from './engine/environmentCatalog.js';
 
 function waitForAnimationFrames(signal, frameCount = 2) {
@@ -60,6 +61,9 @@ export default function App() {
   const [exportMessage, setExportMessage] = useState('');
   const [exportError, setExportError] = useState('');
   const [simulationReport, setSimulationReport] = useState(null);
+  const [aiPlan, setAiPlan] = useState(null);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiError, setAiError] = useState('');
   const captureRef = useRef(null);
 
   const beats = scenario.beats;
@@ -104,10 +108,53 @@ export default function App() {
     const nextScenario = buildScenarioPlan(question);
     setScenario(nextScenario);
     setSimulationReport(null);
+    setAiPlan(null);
+    setAiError('');
     playheadRef.current = 0;
     setPlayheadSeconds(0);
     setActiveBeatIndex(0);
     setPlaying(false);
+  };
+
+  const analyzeWithAI = async () => {
+    const prompt = question.trim();
+    setAiBusy(true);
+    setAiError('');
+    setAiPlan(null);
+    try {
+      const response = await fetch('/api/interpret', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'AI interpretation service is unavailable.');
+      const plan = payload.plan;
+      const nextScenario = buildScenarioPlan(prompt);
+      if (plan?.classification === 'supported') {
+        const eventIndex = nextScenario.beats.findIndex((item) => item.event === plan.event?.type);
+        const eventStart = eventIndex < 0
+          ? -1
+          : nextScenario.beats.slice(0, eventIndex).reduce((sum, item) => sum + item.durationSeconds, 0);
+        if (nextScenario.id !== 'rubber' ||
+          plan.simulationModelId !== 'city-traffic-kinematics-v1' ||
+          eventStart !== plan.event.startSeconds ||
+          nextScenario.beats[eventIndex]?.durationSeconds !== plan.event.durationSeconds) {
+          throw new Error('The AI plan does not match the registered local simulation contract. It was not executed.');
+        }
+      }
+      setScenario(nextScenario);
+      setSimulationReport(null);
+      playheadRef.current = 0;
+      setPlayheadSeconds(0);
+      setActiveBeatIndex(0);
+      setPlaying(false);
+      setAiPlan(plan);
+    } catch (error) {
+      setAiError(error?.message || 'AI interpretation failed. The deterministic simulation remains available.');
+    } finally {
+      setAiBusy(false);
+    }
   };
 
   const reset = () => {
@@ -269,6 +316,10 @@ export default function App() {
           <button className="generate-button" onClick={generateStory} disabled={exporting}>
             <WandSparkles size={15} /> GENERATE STORYBOARD
           </button>
+          <button className="ai-analyze-button" onClick={analyzeWithAI} disabled={exporting || aiBusy || !question.trim()}>
+            <Sparkles size={15} /> {aiBusy ? 'ANALYZING WITH AI…' : 'INTERPRET WITH AI'}
+          </button>
+          <AIInterpretation plan={aiPlan} error={aiError} busy={aiBusy} />
           <div className="engine-status">
             <span className={scenario.supported ? 'engine-indicator mapped' : 'engine-indicator'} />
             <span>{scenario.supported ? 'MAPPED EVENT · ' + scenario.label : 'UNMAPPED · ' + (ENVIRONMENT_LABELS[scenario.environment] || 'CITY') + ' ENVIRONMENT'}</span>
