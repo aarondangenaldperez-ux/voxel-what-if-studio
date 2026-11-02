@@ -39,5 +39,5 @@ test("unsupported AI plans cannot request a simulation model", () => {
     assumptions: ["An orbital model would be needed."], limitations: ["No orbital model is registered."]
   };
   assert.equal(validateAIInterpretation(plan, "What if the Moon vanished?").classification, "unsupported");
-  assert.throws(() => validateAIInterpretation({ ...plan, simulationModelId: "city-traffic-kinematics-v1" }, "What if the Moon vanished?"), /unsupported scenarios/);
+  assert.throws(() => validateAIInterpretation({ ...plan, simulationModelId: "city-traffic-kinematics-v1" }, "What if the Moon vanished?"), /Unsupported scenarios/);
 });
