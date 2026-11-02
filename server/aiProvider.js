@@ -28,11 +28,13 @@ Do not add properties outside this schema.`;
 function getConfig(env) {
   const apiKey = String(env.AI_API_KEY || "").trim();
   const model = String(env.AI_MODEL || "").trim();
-  const base = String(env.AI_API_BASE_URL || "https://api.openai.com/v1").replace(/\\/$/, "");
+  const rawBase = String(env.AI_API_BASE_URL || "https://api.openai.com/v1").trim();
+  const base = rawBase.endsWith("/") ? rawBase.slice(0, -1) : rawBase;
   if (!apiKey || !model) return null;
   const url = new URL(base);
   if (url.protocol !== "https:") throw new Error("AI_API_BASE_URL must use HTTPS.");
-  return { apiKey, model, endpoint: url.toString().replace(/\\/$/, "") + "/chat/completions" };
+  const normalizedBase = url.toString().endsWith("/") ? url.toString().slice(0, -1) : url.toString();
+  return { apiKey, model, endpoint: normalizedBase + "/chat/completions" };
 }
 
 export async function interpretScenarioWithAI({ prompt, env = process.env, fetchImpl = fetch } = {}) {
