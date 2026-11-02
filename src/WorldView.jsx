@@ -118,6 +118,11 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
           exportSize = { width, height };
           resize();
         },
+        renderAtTime(seconds) {
+          const time = Math.max(0, Number(seconds) || 0);
+          if (state.current.timelineRef) state.current.timelineRef.current = time;
+          renderScene(time);
+        },
         resetOutputSize() {
           exportSize = null;
           renderer.setPixelRatio(previewPixelRatio);
@@ -127,10 +132,11 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
       };
     }
 
-    function animate() {
-      frameId = requestAnimationFrame(animate);
+    function renderScene(elapsedOverride) {
       const current = state.current;
-      const elapsed = Math.max(0, Number(current.timelineRef?.current) || 0);
+      const elapsed = Number.isFinite(Number(elapsedOverride))
+        ? Math.max(0, Number(elapsedOverride))
+        : Math.max(0, Number(current.timelineRef?.current) || 0);
       const currentScenario = current.scenario;
       const beats = currentScenario?.beats || [];
       const timeline = getTimelinePosition(beats, elapsed);
@@ -263,6 +269,11 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
       element.dataset.cameraTargetX = controls.target.x.toFixed(2);
       element.dataset.cameraTargetZ = controls.target.z.toFixed(2);
       renderer.render(scene, camera);
+    }
+
+    function animate() {
+      frameId = requestAnimationFrame(animate);
+      renderScene();
     }
 
     const renderStatus = document.createElement('div');
