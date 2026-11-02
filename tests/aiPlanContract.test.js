@@ -39,7 +39,9 @@ test("unsupported AI plans cannot request a simulation model", () => {
   const plan = {
     schemaVersion: 1, classification: "unsupported", title: "Moon vanishes",
     summary: "No registered model supports this event.", simulationModelId: null, event: null,
-    entities: [], variables: [], relationships: [], facts: [],
+    entities: [], variables: [], relationships: [],
+    requiredSystems: [{ id: "orbital-mechanics", reason: "Orbital dynamics are needed to calculate changes to the Moon's trajectory." }],
+    missingInformation: [], conflicts: [], facts: [],
     assumptions: ["An orbital model would be needed."], limitations: ["No orbital model is registered."]
   };
   assert.equal(validateAIInterpretation(plan, "What if the Moon vanished?").classification, "unsupported");
