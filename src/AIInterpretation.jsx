@@ -20,7 +20,7 @@ export default function AIInterpretation({ plan, error, busy }) {
       {plan.missingInformation.length > 0 && <div className="ai-plan-section"><strong>Missing information</strong><ul>{plan.missingInformation.map((item) => <li key={item}>{item}</li>)}</ul></div>}
       {plan.conflicts.length > 0 && <div className="ai-plan-section ai-plan-limitations"><strong>Conflicting assumptions</strong><ul>{plan.conflicts.map((item) => <li key={item}>{item}</li>)}</ul></div>}
       {plan.assumptions.length > 0 && <div className="ai-plan-section"><strong>Assumptions</strong><ul>{plan.assumptions.map((item) => <li key={item}>{item}</li>)}</ul></div>}
-      {plan.facts.length > 0 && <div className="ai-plan-section"><strong>Context identified in the prompt</strong><ul>{plan.facts.map((item) => <li key={item}>{item}</li>)}</ul></div>}
+      {plan.facts.length > 0 && <div className="ai-plan-section"><strong>Context identified in the prompt</strong><ul>{plan.facts.map((item) => <li key={item.evidence}>{item.statement} <span className="ai-fact-evidence">“{item.evidence}”</span></li>)}</ul></div>}
       {plan.limitations.length > 0 && <div className="ai-plan-section ai-plan-limitations"><strong>Limitations</strong><ul>{plan.limitations.map((item) => <li key={item}>{item}</li>)}</ul></div>}
       <p className="ai-analysis-disclaimer">This is an AI-generated interpretation, not independent scientific verification. Only the registered model is executable.</p>
     </section>
