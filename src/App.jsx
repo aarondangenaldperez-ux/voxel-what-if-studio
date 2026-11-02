@@ -8,6 +8,7 @@ const WorldView = lazy(() => import('./WorldView.jsx'));
 import { buildScenarioPlan } from './engine/scenarioEngine.js';
 import SimulationInsights from './SimulationInsights.jsx';
 import AIInterpretation from './AIInterpretation.jsx';
+import { validateAIInterpretation } from './engine/ai/planContract.js';
 import { ENVIRONMENT_LABELS } from './engine/environmentCatalog.js';
 
 function waitForAnimationFrames(signal, frameCount = 2) {
@@ -122,14 +123,15 @@ export default function App() {
     setAiError('');
     setAiPlan(null);
     try {
-      const response = await fetch('/api/interpret', {
+      const aiApiBase = import.meta.env.VITE_AI_API_URL || '';
+      const response = await fetch(aiApiBase + '/api/interpret', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt })
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error || 'AI interpretation service is unavailable.');
-      const plan = payload.plan;
+      const plan = validateAIInterpretation(payload.plan, prompt);
       const nextScenario = buildScenarioPlan(prompt);
       if (plan?.classification === 'supported') {
         const eventIndex = nextScenario.beats.findIndex((item) => item.event === plan.event?.type);
