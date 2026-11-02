@@ -108,11 +108,11 @@ export function validateAIInterpretation(raw, originalPrompt) {
   const conflicts = textList(raw.conflicts || [], "conflicts", 8);
   const rawFacts = Array.isArray(raw.facts) ? raw.facts : [];
   if (rawFacts.length > 8) throw new RangeError("The AI plan contains too many facts.");
-  const normalizedPrompt = prompt.toLowerCase().replace(/\\s+/g, " ").trim();
+  const normalizedPrompt = prompt.toLowerCase().replace(/\s+/g, " ").trim();
   const facts = rawFacts.map((fact, index) => {
     const statement = cleanText(fact?.statement, "fact statement " + index, 220);
     const evidence = cleanText(fact?.evidence, "fact evidence " + index, 160);
-    const normalizedEvidence = evidence.toLowerCase().replace(/\\s+/g, " ").trim();
+    const normalizedEvidence = evidence.toLowerCase().replace(/\s+/g, " ").trim();
     if (!normalizedPrompt.includes(normalizedEvidence)) {
       throw new TypeError("Fact evidence must be an exact quote from the user's prompt.");
     }
