@@ -13,7 +13,7 @@ const plan = {
   requiredSystems: [{ id: "traffic-kinematics", reason: "The registered model uses bounded kinematics." }],
   missingInformation: [],
   conflicts: [],
-  facts: ["The user asked for tire loss."],
+  facts: [{ statement: "The prompt specifies tire loss for five seconds.", evidence: "rubber disappeared for five seconds" }],
   assumptions: ["The current city scene is used."],
   limitations: ["No tire-road friction model is available."]
 };
