@@ -234,6 +234,9 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
         element.dataset.simulationTime = trafficFrame.timeSeconds.toFixed(3);
         element.dataset.simulatedVehicleCount = String(trafficFrame.vehicles.length);
         element.dataset.tireLossActive = String(trafficFrame.eventActive);
+        element.dataset.simulatedVehicleState = trafficFrame.vehicles[0]?.state || "unknown";
+        element.dataset.simulatedVehicleWheels = String(Boolean(trafficFrame.vehicles[0]?.wheelsPresent));
+        element.dataset.simulatedVehicleSpeed = String(trafficFrame.vehicles[0]?.speed ?? 0);
       }
       city.cars.forEach((car, index) => {
         if (trafficFrame) {
