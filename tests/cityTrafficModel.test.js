@@ -75,4 +75,10 @@ test("invalid entity IDs, duplicate vehicles, invalid event windows and excessiv
   assert.throws(() => runCityTrafficStudy({
     vehicles, durationSeconds: 600, sampleStepSeconds: 1 / 120
   }), /72,000/);
+  const manyVehicles = Array.from({ length: 100 }, (_, index) => ({
+    id: "vehicle-" + index, x: index, z: 0, heading: 0
+  }));
+  assert.throws(() => runCityTrafficStudy({
+    vehicles: manyVehicles, durationSeconds: 600, sampleStepSeconds: 0.06
+  }), /one-million entity-sample/);
 });
