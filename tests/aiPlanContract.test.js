@@ -62,3 +62,8 @@ test("AI contract will not execute plans with missing information, conflicts or 
     ]
   }, "What if rubber disappeared for five seconds?"), /unavailable simulation systems/);
 });
+
+test("AI will not accept the registered model when five seconds were not explicit in the user's prompt", () => {
+  assert.throws(() => validateAIInterpretation(supportedPlan, "What if all rubber disappeared?"), /explicitly describe.*five seconds/);
+  assert.throws(() => validateAIInterpretation(supportedPlan, "What if rubber disappeared for 10 seconds?"), /explicitly describe.*five seconds/);
+});
