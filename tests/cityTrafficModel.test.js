@@ -9,7 +9,7 @@ const vehicles = [
 ];
 
 test("traffic simulation preserves baseline motion before the event and applies bounded braking", () => {
-  const simulation = createCityTrafficSimulation({ vehicles });
+  const simulation = createCityTrafficSimulation({ vehicles, recoveryStartSeconds: 33 });
   const before = simulation.sampleAt(7.99);
   const eventStart = simulation.sampleAt(8);
   const afterBrake = simulation.sampleAt(10);
@@ -28,7 +28,9 @@ test("five-second tire-loss interval has exact boundaries and deterministic reco
   const simulation = createCityTrafficSimulation({ vehicles });
   assert.equal(simulation.sampleAt(12.999).vehicles[0].wheelsPresent, false);
   assert.equal(simulation.sampleAt(13).vehicles[0].wheelsPresent, true);
-  assert.equal(simulation.sampleAt(13).vehicles[0].state, "recovering");
+  assert.equal(simulation.sampleAt(13).vehicles[0].state, "stopped");
+  assert.equal(simulation.sampleAt(32.999).vehicles[0].state, "stopped");
+  assert.equal(simulation.sampleAt(33).vehicles[0].state, "recovering");
   const first = simulation.sampleAt(22.4);
   simulation.sampleAt(1.2);
   const second = simulation.sampleAt(22.4);
@@ -43,6 +45,7 @@ test("scenario results compare against an unchanged baseline and quantify stoppe
   assert.ok(report.meanTravelDistanceShortfall > 0);
   assert.ok(report.stoppedVehicleSeconds > 0);
   assert.equal(report.eventDurationSeconds, 5);
+  assert.equal(report.recoveryStartSeconds, 33);
   assert.match(report.units, /not SI/);
 });
 
