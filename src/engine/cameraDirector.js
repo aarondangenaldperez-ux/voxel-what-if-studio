@@ -76,11 +76,19 @@ export function getCinematicCameraPose({ beats, elapsedSeconds, scenarioId } = {
   const shots = scenarioId === "rubber" ? RUBBER_SHOTS : DEFAULT_SHOTS;
   const from = shots[previousBeat.camera] || shots.establish;
   const to = shots[currentBeat.camera] || shots.establish;
-  const blend = smoothStep01(timeline.elapsedInBeat / 1.15);
+  // The prior shot finishes at its fully eased offset. Start the next shot
+  // from that exact pose so crossing a beat boundary cannot snap the camera.
+  const fromPosition = timeline.index === 0
+    ? from.position
+    : addMotion(from.position, from.motion?.position, 1);
+  const fromTarget = timeline.index === 0
+    ? from.target
+    : addMotion(from.target, from.motion?.target, 1);
+  const blend = timeline.index === 0 ? 0 : smoothStep01(timeline.elapsedInBeat / 1.15);
   // Monotonic ease: a sine arch would place the camera at the same pose at p and 1-p.
-  const drift = 0.5 - 0.5 * Math.cos(Math.PI * timeline.progress);
-  const position = mixVector(from.position, to.position, blend);
-  const target = mixVector(from.target, to.target, blend);
+  const drift = timeline.index === 0 ? 0 : 0.5 - 0.5 * Math.cos(Math.PI * timeline.progress);
+  const position = mixVector(fromPosition, to.position, blend);
+  const target = mixVector(fromTarget, to.target, blend);
 
   return {
     position: addMotion(position, to.motion?.position, drift),
