@@ -176,6 +176,7 @@ export default function App() {
       let lastUiTime = -Infinity;
       const blob = await recordCanvasVideo({
         sourceCanvas: target.canvas,
+        renderSourceFrame: (elapsed) => target.renderAtTime(elapsed),
         prepareSourceCanvas: async ({ signal }) => {
           setExportMessage("Preparing 1080 × 1920 video render…");
           target.setOutputSize(1080, 1920);
