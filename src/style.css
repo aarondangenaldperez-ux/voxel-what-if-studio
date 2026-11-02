@@ -43,3 +43,81 @@
 .camera-mode-controls{max-width:calc(100% - 20px);flex-wrap:wrap}
 .camera-mode-button[data-mode="presenter"]{border-color:#49665e;color:#a9d6c8}
 @media(max-width:420px){.camera-mode-controls{top:48px;right:8px;gap:2px}.camera-mode-button{padding:6px 7px;font-size:7px}.camera-mode-hint{display:none}}
+
+
+/* Computed simulation report */
+.simulation-results {
+  margin: 18px 0;
+  padding: 18px;
+  border: 1px solid rgba(144, 178, 190, .22);
+  border-radius: 12px;
+  background: rgba(12, 23, 31, .72);
+}
+.simulation-results-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.simulation-eyebrow {
+  color: #91b6c1;
+  font-size: 10px;
+  letter-spacing: .12em;
+  font-weight: 700;
+}
+.simulation-results-heading h3 {
+  margin: 5px 0 0;
+  color: #f1f5f3;
+  font-size: 17px;
+  font-weight: 650;
+}
+.simulation-status {
+  flex: 0 0 auto;
+  color: #9bc5ad;
+  font-size: 9px;
+  letter-spacing: .08em;
+  border: 1px solid rgba(139, 191, 160, .3);
+  border-radius: 20px;
+  padding: 6px 8px;
+}
+.simulation-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.simulation-metrics > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 11px;
+  background: rgba(121, 159, 171, .08);
+  border-radius: 8px;
+}
+.simulation-metrics strong {
+  color: #f0c987;
+  font-size: clamp(16px, 2vw, 22px);
+  font-variant-numeric: tabular-nums;
+}
+.simulation-metrics span {
+  color: #a8b7bb;
+  font-size: 10px;
+  line-height: 1.4;
+}
+.simulation-comparison,
+.simulation-assumptions {
+  color: #bdc9ca;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.simulation-comparison { margin: 14px 0 8px; }
+.simulation-comparison b { color: #f1f5f3; font-variant-numeric: tabular-nums; }
+.simulation-assumptions summary { cursor: pointer; color: #b9cbd0; }
+.simulation-assumptions ul { padding-left: 18px; }
+.simulation-assumptions li { margin: 6px 0; }
+.simulation-assumptions p { color: #d1a77a; }
+@media (max-width: 720px) {
+  .simulation-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .simulation-results { padding: 14px; }
+}
