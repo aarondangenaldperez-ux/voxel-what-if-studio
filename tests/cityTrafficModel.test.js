@@ -69,5 +69,7 @@ test("invalid entity IDs, duplicate vehicles, invalid event windows and excessiv
   assert.throws(() => createCityTrafficSimulation({ vehicles: [{ id: "../unsafe", x: 0, z: 0, heading: 0 }] }), /identifier/);
   assert.throws(() => createCityTrafficSimulation({ vehicles: [vehicles[0], vehicles[0]] }), /unique/);
   assert.throws(() => createCityTrafficSimulation({ vehicles, eventStartSeconds: 54, eventDurationSeconds: 5 }), /fit inside/);
-  assert.throws(() => runCityTrafficStudy({ vehicles, sampleStepSeconds: 1 / 120 }), /72,000/);
+  assert.throws(() => runCityTrafficStudy({
+    vehicles, durationSeconds: 600, sampleStepSeconds: 1 / 120
+  }), /72,000/);
 });
