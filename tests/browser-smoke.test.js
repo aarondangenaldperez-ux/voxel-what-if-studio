@@ -36,6 +36,28 @@ test("production app renders WebGL, switches environments, and exports real file
       waitUntil: "networkidle"
     });
     assert.equal(response?.status(), 200, "production entry page should load");
+
+    // Exercise the responsive layout at common compact-phone widths.
+    for (const width of [360, 390, 430]) {
+      await page.setViewportSize({ width, height: 844 });
+      const layout = await page.evaluate(() => {
+        const scene = document.querySelector(".viewport");
+        return {
+          viewportWidth: window.innerWidth,
+          documentWidth: document.documentElement.scrollWidth,
+          bodyWidth: document.body.scrollWidth,
+          sceneRight: scene?.getBoundingClientRect().right ?? 0
+        };
+      });
+      assert.ok(layout.documentWidth <= layout.viewportWidth,
+        "the document should not overflow horizontally at " + width + "px");
+      assert.ok(layout.bodyWidth <= layout.viewportWidth,
+        "the page body should not overflow horizontally at " + width + "px");
+      assert.ok(layout.sceneRight <= layout.viewportWidth + 1,
+        "the 3D scene should fit inside the viewport at " + width + "px");
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+
     const canvas = page.locator(".world-view canvas");
     await canvas.waitFor({ state: "visible", timeout: 20000 });
 
@@ -154,6 +176,19 @@ test("production app renders WebGL, switches environments, and exports real file
     assert.match(storyboard, /What if all rubber disappeared for 5 seconds\?/);
     assert.match(storyboard, /Duration: 00:56/);
 
+    // Keep a reference to the exact Blob produced by the full app export so
+    // the test can decode that file, not just a separate small exporter fixture.
+    await page.evaluate(() => {
+      const nativeCreateObjectURL = URL.createObjectURL.bind(URL);
+      window.__voxelVideoExportBlob = null;
+      URL.createObjectURL = (blob) => {
+        if (blob instanceof Blob && blob.type.startsWith("video/")) {
+          window.__voxelVideoExportBlob = blob;
+        }
+        return nativeCreateObjectURL(blob);
+      };
+    });
+
     const videoDownloadResult = page.waitForEvent("download", { timeout: 160000 })
       .then((download) => ({ download }))
       .catch((error) => ({ error }));
@@ -200,6 +235,59 @@ test("production app renders WebGL, switches environments, and exports real file
     await videoDownload.saveAs(videoPath);
     const videoBytes = await readFile(videoPath);
     assert.ok(videoBytes.byteLength > 0, "the full app export should produce a non-empty downloadable video");
+
+    const exportMetadata = await page.evaluate(async () => {
+      const blob = window.__voxelVideoExportBlob;
+      if (!(blob instanceof Blob) || blob.size === 0) {
+        throw new Error("The full app export Blob was not captured.");
+      }
+      const url = URL.createObjectURL(blob);
+      const video = document.createElement("video");
+      video.preload = "metadata";
+      video.muted = true;
+      video.src = url;
+      try {
+        return await new Promise((resolve, reject) => {
+          const timeout = window.setTimeout(
+            () => reject(new Error("The full app export metadata did not load.")),
+            15000
+          );
+          const finish = (callback, value) => {
+            window.clearTimeout(timeout);
+            video.onloadedmetadata = null;
+            video.onerror = null;
+            callback(value);
+          };
+          video.onloadedmetadata = () => finish(resolve, {
+            duration: video.duration,
+            width: video.videoWidth,
+            height: video.videoHeight,
+            type: blob.type
+          });
+          video.onerror = () => finish(reject,
+            new Error("The browser could not decode the full app export."));
+        });
+      } finally {
+        URL.revokeObjectURL(url);
+        video.removeAttribute("src");
+        video.load();
+      }
+    });
+    assert.equal(exportMetadata.width, 1080,
+      "the full app export should decode at 1080 pixels wide");
+    assert.equal(exportMetadata.height, 1920,
+      "the full app export should decode at 1920 pixels high");
+    assert.ok(
+      Number.isFinite(exportMetadata.duration) &&
+        exportMetadata.duration >= 54 && exportMetadata.duration <= 58,
+      "the full app export should decode to approximately 56 seconds; got " +
+        exportMetadata.duration + " seconds (" + exportMetadata.width + "x" + exportMetadata.height +
+        ", " + exportMetadata.type + ")"
+    );
+    assert.ok(
+      exportMetadata.type.startsWith("video/mp4") || exportMetadata.type.startsWith("video/webm"),
+      "the full app export should use a real MP4 or WebM media type"
+    );
 
     assert.deepEqual(pageErrors, [], "browser should not report uncaught page errors");
   } finally {
