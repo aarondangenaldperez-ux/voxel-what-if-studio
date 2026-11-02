@@ -22,7 +22,7 @@ Use this schema:
  "requiredSystems":[{"id":"traffic-kinematics|rigid-body-physics|fluid-dynamics|orbital-mechanics|agent-based-population|environmental-dynamics|unknown","reason":"why this system is needed"}],
  "missingInformation":["information needed to make the model well-defined"],
  "conflicts":["contradictory or incompatible prompt assumptions"],
- "facts":["fact directly stated by user"],
+ "facts":[{"statement":"fact statement","evidence":"exact verbatim quote from the prompt"}],
  "assumptions":["assumption needed to interpret the scenario"],
  "limitations":["what cannot be concluded"]
 }
@@ -41,7 +41,10 @@ function getConfig(env) {
 }
 
 export async function interpretScenarioWithAI({ prompt, env = process.env, fetchImpl = fetch } = {}) {
-  const sanitizedPrompt = String(prompt || "").trim();
+  if (typeof prompt !== "string") {
+    throw Object.assign(new Error("Scenario prompt must be plain text."), { statusCode: 400 });
+  }
+  const sanitizedPrompt = prompt.replace(/[\\u0000-\\u001f\\u007f]/g, " ").replace(/\\s+/g, " ").trim();
   if (sanitizedPrompt.length < 8 || sanitizedPrompt.length > 280) {
     throw Object.assign(new Error("Enter a scenario between 8 and 280 characters."), { statusCode: 400 });
   }
