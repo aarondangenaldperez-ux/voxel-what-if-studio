@@ -32,6 +32,7 @@ test("AI plan contract rejects unregistered models, modified event windows and e
   assert.throws(() => validateAIInterpretation({ ...supportedPlan, simulationModelId: "arbitrary-js" }, "What if rubber disappeared for five seconds?"), /not registered/);
   assert.throws(() => validateAIInterpretation({ ...supportedPlan, event: { ...supportedPlan.event, durationSeconds: 9 } }, "What if rubber disappeared for five seconds?"), /event 8.*13/);
   assert.throws(() => validateAIInterpretation({ ...supportedPlan, entities: [{ id: "<script>", type: "vehicle", label: "Vehicle" }] }, "What if rubber disappeared for five seconds?"), /identifiers/);
+  assert.throws(() => validateAIInterpretation(supportedPlan, "What if we changed tires every five seconds?"), /disappearing/);
 });
 
 test("unsupported AI plans cannot request a simulation model", () => {
@@ -66,4 +67,11 @@ test("AI contract will not execute plans with missing information, conflicts or 
 test("AI will not accept the registered model when five seconds were not explicit in the user's prompt", () => {
   assert.throws(() => validateAIInterpretation(supportedPlan, "What if all rubber disappeared?"), /explicitly describe.*five seconds/);
   assert.throws(() => validateAIInterpretation(supportedPlan, "What if rubber disappeared for 10 seconds?"), /explicitly describe.*five seconds/);
+});
+
+test("AI plans must identify at least one required simulation system", () => {
+  assert.throws(() => validateAIInterpretation({
+    ...supportedPlan,
+    requiredSystems: []
+  }, "What if rubber disappeared for five seconds?"), /at least one required simulation system/);
 });
