@@ -259,6 +259,9 @@ export default function WorldView({ scenario, beat, playing, cameraMode = 'auto'
       });
 
       controls.update();
+      element.dataset.cameraDistance = camera.position.distanceTo(controls.target).toFixed(2);
+      element.dataset.cameraTargetX = controls.target.x.toFixed(2);
+      element.dataset.cameraTargetZ = controls.target.z.toFixed(2);
       renderer.render(scene, camera);
     }
 
