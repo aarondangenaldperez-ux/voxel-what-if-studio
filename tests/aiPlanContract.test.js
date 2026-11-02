@@ -30,7 +30,7 @@ test("AI plan contract accepts registered model plans and returns a sanitized st
 
 test("AI plan contract rejects unregistered models, modified event windows and executable entity IDs", () => {
   assert.throws(() => validateAIInterpretation({ ...supportedPlan, simulationModelId: "arbitrary-js" }, "What if rubber disappeared for five seconds?"), /not registered/);
-  assert.throws(() => validateAIInterpretation({ ...supportedPlan, event: { ...supportedPlan.event, durationSeconds: 9 } }, "What if rubber disappeared for five seconds?"), /8-to-13/);
+  assert.throws(() => validateAIInterpretation({ ...supportedPlan, event: { ...supportedPlan.event, durationSeconds: 9 } }, "What if rubber disappeared for five seconds?"), /event 8.*13/);
   assert.throws(() => validateAIInterpretation({ ...supportedPlan, entities: [{ id: "<script>", type: "vehicle", label: "Vehicle" }] }, "What if rubber disappeared for five seconds?"), /identifiers/);
 });
 
