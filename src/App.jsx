@@ -108,7 +108,6 @@ export default function App() {
   const generateStory = () => {
     const nextScenario = buildScenarioPlan(question);
     setScenario(nextScenario);
-    setSimulationReport(null);
     setAiPlan(null);
     setAiError('');
     playheadRef.current = 0;
@@ -146,7 +145,6 @@ export default function App() {
         }
       }
       setScenario(nextScenario);
-      setSimulationReport(null);
       playheadRef.current = 0;
       setPlayheadSeconds(0);
       setActiveBeatIndex(0);
@@ -306,7 +304,11 @@ export default function App() {
           <textarea
             id="whatif"
             value={question}
-            onChange={(event) => setQuestion(event.target.value)}
+            onChange={(event) => {
+              setQuestion(event.target.value);
+              setAiPlan(null);
+              setAiError('');
+            }}
             disabled={exporting}
             maxLength={150}
             placeholder="What if..."
