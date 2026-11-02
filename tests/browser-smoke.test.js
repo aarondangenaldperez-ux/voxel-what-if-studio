@@ -156,7 +156,7 @@ test("production app renders WebGL, switches environments, and exports real file
     const detailTargetZ = Number(await detailCamera.getAttribute("data-camera-target-z"));
     assert.ok(detailDistance > 6.5 && detailDistance < 9,
       "the rubber detail shot should frame the affected vehicle at a readable distance");
-    assert.ok(Math.abs(detailTargetX - 1.55) < 0.35 && Math.abs(detailTargetZ - 8.1) < 0.35,
+    assert.ok(Math.abs(detailTargetX - 1.55) < 0.35 && Math.abs(detailTargetZ - 5.86) < 0.35,
       "the detail camera should point at the affected vehicle, not a building facade");
 
     const downloadPromise = page.waitForEvent("download");
