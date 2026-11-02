@@ -142,7 +142,33 @@ test("production app renders WebGL, switches environments, and exports real file
 
     assert.equal(await page.locator(".beat").count(), 8,
       "the rubber scenario should use shorter, deliberate cinematic beats");
+    await page.waitForFunction(() => {
+      const view = document.querySelector(".world-view");
+      return view?.dataset.simulationModel === "city-traffic-kinematics-v1" &&
+        view?.dataset.simulatedVehicleCount === "3";
+    });
+    await page.waitForFunction(() => document.querySelector(".simulation-results"));
+    assert.equal(await page.locator(".simulation-results").count(), 1,
+      "the active simulation should publish its computed results to the UI");
+
+    await page.locator(".beat").nth(1).click();
+    await page.waitForFunction(() => {
+      const view = document.querySelector(".world-view");
+      return Number(view?.dataset.simulationTime) >= 8 &&
+        view?.dataset.tireLossActive === "true" &&
+        view?.dataset.simulatedVehicleWheels === "false";
+    });
+    assert.equal(await page.locator(".world-view").getAttribute("data-simulated-vehicle-state"), "braking",
+      "the visualized vehicle should be in the computed braking state at event onset");
+
     await page.locator(".beat").nth(2).click();
+    await page.waitForFunction(() => {
+      const view = document.querySelector(".world-view");
+      return Number(view?.dataset.simulationTime) >= 13 &&
+        view?.dataset.tireLossActive === "false" &&
+        view?.dataset.simulatedVehicleWheels === "true";
+    });
+    await page.locator(".play-button").click();
     await page.locator(".play-button").click();
     await page.waitForFunction(
       () => Number(document.querySelector(".world-view")?.dataset.timelineSeconds) >= 14.25,
