@@ -6,10 +6,13 @@ const plan = {
   schemaVersion: 1, classification: "supported", title: "Tire loss",
   summary: "A five-second tire-loss event in the city traffic model.",
   simulationModelId: "city-traffic-kinematics-v1",
-  event: { type: "rubber-loss", startSeconds: 8, durationSeconds: 5 },
+  event: { type: "rubber-loss", startSeconds: 8, durationSeconds: 5, recoveryStartSeconds: 33 },
   entities: [{ id: "car", type: "vehicle", label: "City vehicle" }],
   variables: [{ name: "duration", value: 5, unit: "seconds" }],
   relationships: ["Tire loss initiates braking."],
+  requiredSystems: [{ id: "traffic-kinematics", reason: "The registered model uses bounded kinematics." }],
+  missingInformation: [],
+  conflicts: [],
   facts: ["The user asked for tire loss."],
   assumptions: ["The current city scene is used."],
   limitations: ["No tire-road friction model is available."]
@@ -29,6 +32,7 @@ test("AI provider sends the secret only in server-side authorization and validat
   assert.equal(request.options.headers.Authorization, "Bearer server-secret");
   assert.equal(result.classification, "supported");
   assert.equal(result.simulationModelId, "city-traffic-kinematics-v1");
+  assert.equal(result.requiredSystems[0].available, true);
 });
 
 test("AI provider refuses to run without server-side key and model configuration", async () => {
