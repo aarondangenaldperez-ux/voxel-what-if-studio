@@ -122,7 +122,7 @@ export function getCityActorPoseAtTime({ elapsedSeconds, scenarioId, beats, acto
   const swing = (Math.sin(time * 4.2 + index * 1.4) - Math.sin(index * 1.4)) * 0.34;
   const gravityFloat = 0.95 + (index * 0.18) + Math.sin(time * 2.1 + index) * 0.2;
   const trafficPhase = index * 1.7;
-  const carTravelDistance = (Math.sin(motionTime * 0.62 + trafficPhase) - Math.sin(trafficPhase)) * 2.9;
+  const carTravelDistance = motionTime * 0.28;
   const pedestrianPhase = index * 2.25;
   const pedestrianTravelDistance = (Math.sin(motionTime * 0.48 + pedestrianPhase) - Math.sin(pedestrianPhase)) * 0.82;
 
