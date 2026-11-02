@@ -242,7 +242,6 @@ export async function recordCanvasVideo({
 
   let format;
   let stream;
-  let captureTrack;
   let recorder;
   let context;
   try {
@@ -271,14 +270,10 @@ export async function recordCanvasVideo({
     };
 
     drawFrame(0);
-    stream = output.captureStream(0);
-    captureTrack = stream.getVideoTracks()[0];
-    const manualCapture = typeof captureTrack?.requestFrame === "function";
-    if (!manualCapture) {
-      stream.getTracks().forEach((track) => track.stop());
-      stream = output.captureStream(fps);
-      captureTrack = null;
-    }
+    // Use the browser's fixed-rate canvas track. The manual requestFrame path
+    // produced fewer encoded frames than the nominal frame cadence on slower
+    // WebGL/software renderers, shortening the resulting media duration.
+    stream = output.captureStream(fps);
 
     if (abortController.signal.aborted) throw interruptionError;
     recorder = new MediaRecorderClass(stream, {
@@ -345,22 +340,15 @@ export async function recordCanvasVideo({
       };
 
       try {
-        const frameInterval = 1000 / fps;
-        let lastCapturedAt = -Infinity;
         let recordingStartedAt = null;
         const renderFrame = (timestamp) => {
           if (settled || recorder.state !== "recording" || recordingStartedAt === null) return;
           try {
             const elapsed = Math.min(durationSeconds, Math.max(0, (timestamp - recordingStartedAt) / 1000));
-            if (!manualCapture || timestamp - lastCapturedAt >= frameInterval) {
-              // Render the 3D scene at this exact storyboard timestamp before
-              // copying it into the recording canvas. Do not rely on a separate
-              // animation loop winning the requestAnimationFrame race.
-              renderSourceFrame(elapsed);
-              drawFrame(elapsed);
-              if (manualCapture) captureTrack.requestFrame();
-              lastCapturedAt = timestamp;
-            }
+            // Render the 3D scene at this exact storyboard timestamp before
+            // copying it into the fixed-rate recording canvas.
+            renderSourceFrame(elapsed);
+            drawFrame(elapsed);
             onTime(elapsed, getBeatAtTime(beats, elapsed));
             onProgress(elapsed / durationSeconds);
             if (elapsed >= durationSeconds) {
@@ -390,7 +378,6 @@ export async function recordCanvasVideo({
         recorder.onstart = () => {
           if (settled || abortController.signal.aborted) return;
           recordingStartedAt = performance.now();
-          if (manualCapture) captureTrack.requestFrame();
           onTime(0, getBeatAtTime(beats, 0));
           onProgress(0);
           frameId = requestAnimationFrame(renderFrame);
