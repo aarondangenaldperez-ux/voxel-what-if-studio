@@ -28,6 +28,11 @@ test("AI endpoint validates requests and surfaces missing server configuration",
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: "no" })
     });
     assert.equal(invalid.status, 400);
+    const invalidType = await fetch(base + "/api/interpret", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: { scenario: "What if the Moon vanished?" } })
+    });
+    assert.equal(invalidType.status, 400);
     const missing = await fetch(base + "/api/interpret", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt: "What if the Moon vanished?" })
