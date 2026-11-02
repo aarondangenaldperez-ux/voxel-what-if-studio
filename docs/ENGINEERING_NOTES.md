@@ -153,3 +153,21 @@ The application is a static React/Vite/Three.js client deployed to GitHub Pages.
 - The AI plan validator applies the same prompt requirements and exact 8–13 second event / 33 second recovery contract.
 - AI plans must name at least one recognized simulation system. Supported plans must identify the registered traffic-kinematics model, and are blocked if they require unavailable systems, omit necessary information, or report conflicting assumptions.
 - The visualization uses model-computed wheel rotation from travel distance and wheel radius; tire restoration at 13 seconds is distinct from traffic restart at 33 seconds.
+
+
+## 2026-11-02 — Fixed-rate export capture
+
+### Finding
+
+The full-app Chromium test measured an encoded 56-second scene at 52.642 seconds while the standalone exporter fixture passed. The full application uses a costly 1080×1920 Three.js scene in software-rendered Chromium. The manual `CanvasCaptureMediaStreamTrack.requestFrame()` path did not maintain the nominal cadence under that rendering load; the encoded file contained fewer sequential frames and therefore a shorter media timeline.
+
+### Change
+
+- The composition canvas now uses `captureStream(fps)` rather than a zero-rate stream driven by manual `requestFrame()` calls.
+- The Three.js scene and caption compositor remain timestamp-driven; the browser capture track samples the changing composition canvas at the requested fixed rate.
+- The product's export preset is now 1080×1920 at 24fps, a standard video cadence with a lower capture/rendering budget than 30fps.
+- The exporter allows one extra animation-frame turn after the final composition frame before stopping the recorder, so the final canvas update can be captured.
+
+### Verification boundary
+
+The exact full-app encoded duration and 1080×1920 dimensions must pass in Chromium. This does not establish 24fps performance or image quality on Android/iOS devices; real-device QA remains outstanding.
