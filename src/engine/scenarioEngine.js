@@ -9,11 +9,14 @@ const RULES = [
     environment: "urban",
     supported: true,
     beats: [
-      ["00:00", "A normal city morning", "Cars, pedestrians and traffic move through an ordinary city street.", "The city carries on as usual.", "normal", "establish", 8],
-      ["00:08", "The rubber disappears", "Tires vanish from every vehicle. The interruption is shown for exactly five seconds.", "All rubber vanishes. Five seconds begin now.", "rubber-loss", "event", 5],
-      ["00:13", "The tires return", "The missing tires reappear. Vehicles remain stopped briefly as drivers and pedestrians react.", "Five seconds later, the rubber returns.", "traffic-paused", "detail", 14],
-      ["00:27", "Traffic begins to recover", "Vehicles begin moving again while the street returns to its ordinary rhythm.", "The city starts moving again.", "recovery", "aftermath", 21],
-      ["00:48", "The city resumes", "Traffic, pedestrians and street activity settle into their normal pattern.", "The interruption is over.", "restored", "resolve", 8]
+      ["00:00", "City traffic in motion", "Cars flow through a compact city street while pedestrians move along the sidewalks.", "An ordinary day in the city.", "normal", "establish", 8],
+      ["00:08", "Every tire vanishes", "All vehicle tires disappear during an exact five-second interruption. The vehicles drop onto their axles.", "Every tire vanishes. Vehicles slam to a stop.", "rubber-loss", "event", 5],
+      ["00:13", "The tires return — traffic stays stranded", "The tires reappear, but the vehicles remain stationary while drivers assess the sudden stoppage.", "The tires return. The traffic remains stranded.", "traffic-paused", "detail", 7],
+      ["00:20", "Drivers react", "Pedestrians step back and drivers gesture as the intersection remains blocked.", "Drivers react as the junction locks up.", "traffic-paused", "aftermath", 7],
+      ["00:27", "A citywide traffic jam", "A high, wide view reveals stationary vehicles and a queue forming around the intersection.", "The entire junction is at a standstill.", "traffic-paused", "overview", 6],
+      ["00:33", "Traffic cautiously restarts", "Cars begin rolling again after the interruption. Movement resumes carefully.", "Traffic begins to move, slowly.", "recovery", "event", 7],
+      ["00:40", "The gridlock clears", "Vehicles travel through the junction again as pedestrians return to their routes.", "The queue starts to clear.", "recovery", "aftermath", 8],
+      ["00:48", "Normal service resumes", "The city returns to everyday traffic and pedestrian movement.", "The interruption is over.", "restored", "resolve", 8]
     ]
   },
   {
