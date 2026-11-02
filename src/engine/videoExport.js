@@ -261,6 +261,8 @@ export async function recordCanvasVideo({
     output.height = height;
     context = output.getContext("2d", { alpha: false });
     if (!context) throw new Error("Could not create the video composition canvas.");
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
 
     const drawFrame = (elapsedSeconds) => {
       context.fillStyle = "#080d12";
