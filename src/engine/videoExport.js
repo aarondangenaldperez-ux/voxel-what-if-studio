@@ -344,17 +344,13 @@ export async function recordCanvasVideo({
       };
 
       try {
-        recorder.start(1000);
-        const startedAt = performance.now();
         const frameInterval = 1000 / fps;
         let lastCapturedAt = -Infinity;
-        if (manualCapture) captureTrack.requestFrame();
-        onTime(0, getBeatAtTime(beats, 0));
-        onProgress(0);
+        let recordingStartedAt = null;
         const renderFrame = (timestamp) => {
-          if (settled || recorder.state !== "recording") return;
+          if (settled || recorder.state !== "recording" || recordingStartedAt === null) return;
           try {
-            const elapsed = Math.min(durationSeconds, Math.max(0, (timestamp - startedAt) / 1000));
+            const elapsed = Math.min(durationSeconds, Math.max(0, (timestamp - recordingStartedAt) / 1000));
             if (!manualCapture || timestamp - lastCapturedAt >= frameInterval) {
               drawFrame(elapsed);
               if (manualCapture) captureTrack.requestFrame();
@@ -371,7 +367,18 @@ export async function recordCanvasVideo({
             fail(error);
           }
         };
-        frameId = requestAnimationFrame(renderFrame);
+        // MediaRecorder.start() returns before recording actually begins. Anchor
+        // the storyboard clock to the start event so encoder startup latency
+        // cannot silently truncate the exported video.
+        recorder.onstart = () => {
+          if (settled || abortController.signal.aborted) return;
+          recordingStartedAt = performance.now();
+          if (manualCapture) captureTrack.requestFrame();
+          onTime(0, getBeatAtTime(beats, 0));
+          onProgress(0);
+          frameId = requestAnimationFrame(renderFrame);
+        };
+        recorder.start(1000);
       } catch (error) {
         fail(error);
       }
