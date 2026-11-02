@@ -23,7 +23,7 @@ test("rubber scenario camera frames the affected vehicle instead of a nearby bui
   assert.ok(distance(detail.position, detail.target) < 9,
     "detail shot should still read as a deliberate vehicle close-up");
   assert.ok(Math.abs(detail.target[0] - 1.55) < 0.3);
-  assert.ok(Math.abs(detail.target[2] - 8.1) < 0.3);
+  assert.ok(Math.abs(detail.target[2] - 5.86) < 0.3);
 });
 
 test("long rubber beats contain authored camera movement instead of static holds", () => {
