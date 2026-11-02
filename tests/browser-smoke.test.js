@@ -141,6 +141,27 @@ test("production app renders WebGL, switches environments, and exports real file
     }
 
 
+    }
+
+    assert.equal(await page.locator(".beat").count(), 8,
+      "the rubber scenario should use shorter, deliberate cinematic beats");
+    await page.locator(".beat").nth(2).click();
+    await page.locator(".play-button").click();
+    await page.waitForFunction(
+      () => Number(document.querySelector(".world-view")?.dataset.timelineSeconds) >= 14.25,
+      null,
+      { timeout: 5000 }
+    );
+    await page.locator(".play-button").click();
+    const detailCamera = page.locator(".world-view");
+    const detailDistance = Number(await detailCamera.getAttribute("data-camera-distance"));
+    const detailTargetX = Number(await detailCamera.getAttribute("data-camera-target-x"));
+    const detailTargetZ = Number(await detailCamera.getAttribute("data-camera-target-z"));
+    assert.ok(detailDistance > 6.5 && detailDistance < 9,
+      "the rubber detail shot should frame the affected vehicle at a readable distance");
+    assert.ok(Math.abs(detailTargetX - 1.55) < 0.35 && Math.abs(detailTargetZ - 8.1) < 0.35,
+      "the detail camera should point at the affected vehicle, not a building facade");
+
     const downloadPromise = page.waitForEvent("download");
     await page.locator(".export-button").click();
     const download = await downloadPromise;
@@ -226,10 +247,13 @@ test("production app renders WebGL, switches environments, and exports real file
       const frames = [];
       for (const time of times) {
         await new Promise((resolve, reject) => {
-          const onSeeked = () => resolve();
+          const timeout = window.setTimeout(() => reject(new Error("Timed out decoding a sampled export frame.")), 10000);
+          const onSeeked = () => {
+            window.clearTimeout(timeout);
+            resolve();
+          };
           video.addEventListener("seeked", onSeeked, { once: true });
           video.currentTime = Math.min(time, Math.max(0, video.duration - 0.1));
-          window.setTimeout(() => reject(new Error("Timed out decoding a sampled export frame.")), 10000);
         });
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
         frames.push(new Uint8Array(context.getImageData(0, 0, canvas.width, canvas.height).data));
