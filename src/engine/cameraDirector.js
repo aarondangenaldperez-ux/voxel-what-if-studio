@@ -39,8 +39,8 @@ const RUBBER_SHOTS = {
   },
   detail: {
     // A deliberate three-quarter view of the vehicle, not the nearby blank building wall.
-    position: [4, 5.1, 14.2], target: [1.55, 0.85, 8.1],
-    motion: { position: [-0.35, 0.3, -0.75], target: [-0.18, 0, -0.12] }
+    position: [0, 5.1, 14.2], target: [1.55, 0.85, 8.1],
+    motion: { position: [-0.2, 0.3, -0.75], target: [-0.12, 0, -0.12] }
   },
   aftermath: {
     position: [0, 19, 35], target: [0, 1.5, 0],
