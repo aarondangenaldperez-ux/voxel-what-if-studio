@@ -25,7 +25,7 @@ test("traffic simulation preserves baseline motion before the event and applies 
 });
 
 test("five-second tire-loss interval has exact boundaries and deterministic recovery", () => {
-  const simulation = createCityTrafficSimulation({ vehicles });
+  const simulation = createCityTrafficSimulation({ vehicles, recoveryStartSeconds: 33 });
   assert.equal(simulation.sampleAt(12.999).vehicles[0].wheelsPresent, false);
   assert.equal(simulation.sampleAt(13).vehicles[0].wheelsPresent, true);
   assert.equal(simulation.sampleAt(13).vehicles[0].state, "stopped");
@@ -38,7 +38,7 @@ test("five-second tire-loss interval has exact boundaries and deterministic reco
 });
 
 test("scenario results compare against an unchanged baseline and quantify stopped time", () => {
-  const simulation = createCityTrafficSimulation({ vehicles });
+  const simulation = createCityTrafficSimulation({ vehicles, recoveryStartSeconds: 33 });
   const report = simulation.summary;
   assert.equal(report.vehicleCount, 3);
   assert.equal(report.affectedVehicleCount, 3);
