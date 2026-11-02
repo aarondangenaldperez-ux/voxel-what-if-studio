@@ -122,3 +122,26 @@ A unit test checks that encoder selection propagates cancellation. The Chromium 
 - [MDN: Page Visibility API](https://developer.mozilla.org/en-US/docs/Web/API/Page_Visibility_API)
 - [MDN: Document visibilitychange event](https://developer.mozilla.org/en-US/docs/Web/API/Document/visibilitychange_event)
 
+
+
+## 2026-11-02 — VWS-ENGINE-001 first simulation and AI service slice
+
+### Repository audit finding
+
+The application is a static React/Vite/Three.js client deployed to GitHub Pages. Scenario plans are selected by regular expressions and environment keywords. Several visual effects are time-derived, but there was no shared entity-state schema, quantitative result comparison, general physics solver, AI service, or server runtime.
+
+### Implemented
+
+- Added `src/engine/simulation/cityTrafficModel.js`, a deterministic time-addressable kinematic model for the three city vehicles in the five-second tire-loss scenario.
+- The model evaluates a no-event baseline and a braking/hold/recovery scenario, then reports mean travel distance, travel-distance shortfall, and stopped vehicle-seconds.
+- Stable entity IDs are assigned by `cityEnvironment.js`. `WorldView.jsx` samples the model on each timeline render and applies its vehicle position, body drop, and wheel-presence state to the matching Three.js groups.
+- `SimulationInsights.jsx` and `AIInterpretation.jsx` show computed results and AI interpretation separately from the scene.
+- Added a protected Node API service in `server/`, a strict plan contract in `src/engine/ai/planContract.js`, and server-only provider configuration. Only the registered traffic model and exact authored event window can be approved for execution.
+- Added unit and HTTP tests for model calculations, model validation, provider handling, and server request behavior.
+
+### Verification boundary and blockers
+
+- AI inference is real when the server is configured, but this repository has no API key, model choice, or separate production server host configured. No secret was added to the browser or repository. The AI control will report unavailable until the service is configured.
+- The quantitative traffic model uses Three.js scene units and explicit illustrative acceleration parameters. It is deterministic and testable, but not a calibrated road-traffic, tire-friction, collision, or real-world speed model.
+- Gravity, electricity, factory, and ocean scene effects have not yet been upgraded to quantitative simulation models.
+- The existing full-app video-export Chromium test remains a separate release check; this engine milestone does not change or waive its acceptance criteria.
