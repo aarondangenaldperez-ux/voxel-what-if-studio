@@ -272,10 +272,14 @@ export async function recordCanvasVideo({
     };
 
     drawFrame(0);
-    // Use the browser's fixed-rate canvas track. The manual requestFrame path
-    // produced fewer encoded frames than the nominal frame cadence on slower
-    // WebGL/software renderers, shortening the resulting media duration.
-    stream = output.captureStream(fps);
+    stream = output.captureStream(0);
+    captureTrack = stream.getVideoTracks()[0];
+    const manualCapture = typeof captureTrack?.requestFrame === "function";
+    if (!manualCapture) {
+      stream.getTracks().forEach((track) => track.stop());
+      stream = output.captureStream(fps);
+      captureTrack = null;
+    }
 
     if (abortController.signal.aborted) throw interruptionError;
     recorder = new MediaRecorderClass(stream, {
@@ -304,7 +308,7 @@ export async function recordCanvasVideo({
             recorder.stop();
             return;
           } catch {
-            // Fall through to immediate cleanup if stopping the recorder fails.
+            // The track cleanup below still releases the capture stream.
           }
         }
         settled = true;
@@ -342,22 +346,25 @@ export async function recordCanvasVideo({
       };
 
       try {
+        const frameInterval = 1000 / fps;
         let recordingStartedAt = null;
+        let lastCapturedAt = -Infinity;
         const renderFrame = (timestamp) => {
           if (settled || recorder.state !== "recording" || recordingStartedAt === null) return;
           try {
             const elapsed = Math.min(durationSeconds, Math.max(0, (timestamp - recordingStartedAt) / 1000));
-            // Render the 3D scene at this exact storyboard timestamp before
-            // copying it into the fixed-rate recording canvas.
             renderSourceFrame(elapsed);
             drawFrame(elapsed);
+
+            if (!manualCapture || timestamp - lastCapturedAt >= frameInterval || elapsed >= durationSeconds) {
+              if (manualCapture) captureTrack.requestFrame();
+              lastCapturedAt = timestamp;
+            }
             onTime(elapsed, getBeatAtTime(beats, elapsed));
             onProgress(elapsed / durationSeconds);
+
             if (elapsed >= durationSeconds) {
-              // Give the final canvas frame one browser paint/capture turn before
-              // stopping MediaRecorder. Immediate stop can drop a just-requested
-              // manual frame or the last automatic-rate capture tick, truncating
-              // the encoded container even though the simulation clock reached 56s.
+              // The final requestFrame() needs a browser paint turn before stop.
               frameId = requestAnimationFrame(() => {
                 frameId = 0;
                 if (settled || recorder.state !== "recording") return;
@@ -374,12 +381,17 @@ export async function recordCanvasVideo({
             fail(error);
           }
         };
-        // MediaRecorder.start() returns before recording actually begins. Anchor
-        // the storyboard clock to the start event so encoder startup latency
-        // cannot silently truncate the exported video.
+
+        // The preview's own WebGL RAF loop is paused for export. This exporter
+        // loop is now the only renderer clock, avoiding two expensive renders
+        // of the same 3D scene on every display frame.
         recorder.onstart = () => {
           if (settled || abortController.signal.aborted) return;
           recordingStartedAt = performance.now();
+          if (manualCapture) {
+            captureTrack.requestFrame();
+            lastCapturedAt = recordingStartedAt;
+          }
           onTime(0, getBeatAtTime(beats, 0));
           onProgress(0);
           frameId = requestAnimationFrame(renderFrame);
@@ -388,7 +400,7 @@ export async function recordCanvasVideo({
       } catch (error) {
         fail(error);
       }
-    });
+    });;
   } catch (error) {
     stream?.getTracks().forEach((track) => track.stop());
     removeVisibilityListener();
