@@ -6,6 +6,7 @@ import {
 import { getBeatAtTime, recordCanvasVideo } from './engine/videoExport.js';
 const WorldView = lazy(() => import('./WorldView.jsx'));
 import { buildScenarioPlan } from './engine/scenarioEngine.js';
+import SimulationInsights from './SimulationInsights.jsx';
 import { ENVIRONMENT_LABELS } from './engine/environmentCatalog.js';
 
 function waitForAnimationFrames(signal, frameCount = 2) {
@@ -58,6 +59,7 @@ export default function App() {
   const [exportProgress, setExportProgress] = useState(0);
   const [exportMessage, setExportMessage] = useState('');
   const [exportError, setExportError] = useState('');
+  const [simulationReport, setSimulationReport] = useState(null);
   const captureRef = useRef(null);
 
   const beats = scenario.beats;
@@ -101,6 +103,7 @@ export default function App() {
   const generateStory = () => {
     const nextScenario = buildScenarioPlan(question);
     setScenario(nextScenario);
+    setSimulationReport(null);
     playheadRef.current = 0;
     setPlayheadSeconds(0);
     setActiveBeatIndex(0);
@@ -304,7 +307,7 @@ export default function App() {
 
           <div className="viewport">
             <Suspense fallback={<div className="viewport-loading">LOADING 3D SCENE ENGINE…</div>}>
-              <WorldView scenario={scenario} beat={active} playing={playing} cameraMode={cameraMode} lighting={lighting} presenterVisible={presenterVisible} captureRef={captureRef} timelineRef={playheadRef} />
+              <WorldView scenario={scenario} beat={active} playing={playing} cameraMode={cameraMode} lighting={lighting} presenterVisible={presenterVisible} captureRef={captureRef} timelineRef={playheadRef} onSimulationReport={setSimulationReport} />
             </Suspense>
             <div className="viewport-top">
               <span className="live-pill"><span /> 3D SCENE</span>
@@ -361,6 +364,7 @@ export default function App() {
             {exportMessage && <div className="video-export-success">{exportMessage}</div>}
             {exportError && <div className="video-export-error" role="alert">{exportError}</div>}
           </div>
+          <SimulationInsights report={simulationReport} />
           <div className="insight-card">
             <div className="insight-icon"><Lightbulb size={17} /></div>
             <div className="insight-copy">
