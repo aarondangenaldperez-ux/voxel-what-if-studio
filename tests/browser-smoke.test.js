@@ -201,6 +201,73 @@ test("production app renders WebGL, switches environments, and exports real file
     const videoBytes = await readFile(videoPath);
     assert.ok(videoBytes.byteLength > 0, "the full app export should produce a non-empty downloadable video");
 
+    // Decode real exported frames: non-empty bytes alone allowed the earlier
+    // camera-framing and long-static-shot regressions to pass CI.
+    const mediaQuality = await page.evaluate(async ({ base64, mimeType }) => {
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let index = 0; index < binary.length; index += 1) {
+        bytes[index] = binary.charCodeAt(index);
+      }
+      const url = URL.createObjectURL(new Blob([bytes], { type: mimeType }));
+      const video = document.createElement("video");
+      video.muted = true;
+      video.playsInline = true;
+      video.src = url;
+      await new Promise((resolve, reject) => {
+        video.onloadedmetadata = resolve;
+        video.onerror = () => reject(new Error("The exported video could not be decoded."));
+      });
+      const canvas = document.createElement("canvas");
+      canvas.width = 80;
+      canvas.height = 144;
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      const times = [2, 10, 16, 24, 30, 36, 44, 52];
+      const frames = [];
+      for (const time of times) {
+        await new Promise((resolve, reject) => {
+          const onSeeked = () => resolve();
+          video.addEventListener("seeked", onSeeked, { once: true });
+          video.currentTime = Math.min(time, Math.max(0, video.duration - 0.1));
+          window.setTimeout(() => reject(new Error("Timed out decoding a sampled export frame.")), 10000);
+        });
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        frames.push(new Uint8Array(context.getImageData(0, 0, canvas.width, canvas.height).data));
+      }
+      const differences = [];
+      for (let frame = 1; frame < frames.length; frame += 1) {
+        let changed = 0;
+        let samples = 0;
+        for (let pixel = 0; pixel < frames[frame].length; pixel += 4 * 5) {
+          const delta = Math.max(
+            Math.abs(frames[frame][pixel] - frames[frame - 1][pixel]),
+            Math.abs(frames[frame][pixel + 1] - frames[frame - 1][pixel + 1]),
+            Math.abs(frames[frame][pixel + 2] - frames[frame - 1][pixel + 2])
+          );
+          if (delta > 14) changed += 1;
+          samples += 1;
+        }
+        differences.push(changed / samples);
+      }
+      URL.revokeObjectURL(url);
+      return {
+        width: video.videoWidth,
+        height: video.videoHeight,
+        duration: video.duration,
+        differences
+      };
+    }, {
+      base64: videoBytes.toString("base64"),
+      mimeType: videoDownload.suggestedFilename().endsWith(".mp4") ? "video/mp4" : "video/webm"
+    });
+    assert.equal(mediaQuality.width, 1080, "export should decode at the requested width");
+    assert.equal(mediaQuality.height, 1920, "export should decode at the requested portrait height");
+    assert.ok(mediaQuality.duration >= 54 && mediaQuality.duration <= 57,
+      "export should contain the complete 56-second storyboard");
+    assert.ok(mediaQuality.differences.every((ratio) => ratio > 0.002),
+      "sampled story sections should contain visible frame changes, not long frozen shots: " +
+      mediaQuality.differences.map((value) => value.toFixed(4)).join(", "));
+
     assert.deepEqual(pageErrors, [], "browser should not report uncaught page errors");
   } finally {
     await browser?.close();
