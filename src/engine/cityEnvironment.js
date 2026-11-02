@@ -59,7 +59,7 @@ function makeBuilding(scene, x, z, width, depth, height, palette, shared) {
   return group;
 }
 
-function makeCar(scene, x, z, rotation, color, shared) {
+function makeCar(scene, id, x, z, rotation, color, shared) {
   const root = new THREE.Group();
   root.rotation.y = rotation;
   const body = makeCube(1.65, 0.58, 2.65, makeMaterial(color), [0, 0.72, 0], root);
@@ -85,11 +85,12 @@ function makeCar(scene, x, z, rotation, color, shared) {
   }
 
   root.position.set(x, 0, z);
+  root.userData.entityId = id;
   root.userData.basePosition = root.position.clone();
   root.userData.baseRotationY = rotation;
   root.userData.body = body;
   scene.add(root);
-  return { root: root, wheels: wheels, body: body };
+  return { id, root: root, wheels: wheels, body: body };
 }
 
 function makePedestrian(scene, x, z, color, shared) {
@@ -196,9 +197,9 @@ export function buildCityEnvironment(scene) {
   }
 
   const cars = [
-    makeCar(scene, -1.65, -8.2, 0, 0x3e8290, shared),
-    makeCar(scene, 1.55, 8.1, Math.PI, 0xb16d4f, shared),
-    makeCar(scene, -8.2, 1.55, Math.PI / 2, 0xd1b46d, shared)
+    makeCar(scene, "vehicle-1", -1.65, -8.2, 0, 0x3e8290, shared),
+    makeCar(scene, "vehicle-2", 1.55, 8.1, Math.PI, 0xb16d4f, shared),
+    makeCar(scene, "vehicle-3", -8.2, 1.55, Math.PI / 2, 0xd1b46d, shared)
   ];
 
   const pedestrians = [
