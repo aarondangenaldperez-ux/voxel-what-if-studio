@@ -176,3 +176,10 @@ The exact full-app encoded duration and 1080×1920 dimensions must pass in Chrom
 ## 2026-11-02 — Balanced 1080p output render scale
 
 The full-app export test reached 53.851 seconds with a fixed-rate 24fps canvas track, improving over the earlier manual-capture result but still below the 56-second acceptance window on software-rendered Chromium. To reduce WebGL pixel cost without changing the final portrait aspect ratio or encoded file dimensions, the balanced export preset now renders the scene at 900×1600 and scales it into the 1080×1920 composition canvas using high-quality canvas image smoothing. The encoded dimensions remain 1080×1920. This is a deliberate render-resolution trade-off, not native 1080p scene detail, and must be assessed on real target devices.
+
+
+## 2026-11-02 — Reduce fixed capture cadence to 18fps
+
+The full-app Chromium recording at 24fps consistently produced 53.85–53.86 seconds from the 56-second timeline, even after reducing internal scene render resolution to 900×1600. The output canvas is still 1080×1920. This indicates the headless software renderer/canvas capture path cannot reliably sustain a full 24 changed frames per second with the current scene.
+
+The balanced export preset now uses an 18fps browser-managed canvas capture stream, below the observed ~23fps effective limit. This trades some temporal smoothness for a complete 56-second file instead of shortening the scenario. The 1080×1920 output dimensions remain unchanged; internal scene render is 900×1600 and is high-quality upscaled. This is a compatibility/performance preset, not a native 24/30fps quality claim.
