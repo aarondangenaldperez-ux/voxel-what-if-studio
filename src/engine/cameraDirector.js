@@ -86,7 +86,7 @@ export function getCinematicCameraPose({ beats, elapsedSeconds, scenarioId } = {
     : addMotion(from.target, from.motion?.target, 1);
   const blend = timeline.index === 0 ? 0 : smoothStep01(timeline.elapsedInBeat / 1.15);
   // Monotonic ease: a sine arch would place the camera at the same pose at p and 1-p.
-  const drift = timeline.index === 0 ? 0 : 0.5 - 0.5 * Math.cos(Math.PI * timeline.progress);
+  const drift = 0.5 - 0.5 * Math.cos(Math.PI * timeline.progress);
   const position = mixVector(fromPosition, to.position, blend);
   const target = mixVector(fromTarget, to.target, blend);
 
