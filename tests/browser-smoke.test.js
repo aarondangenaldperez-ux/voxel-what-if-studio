@@ -140,9 +140,6 @@ test("production app renders WebGL, switches environments, and exports real file
       }
     }
 
-
-    }
-
     assert.equal(await page.locator(".beat").count(), 8,
       "the rubber scenario should use shorter, deliberate cinematic beats");
     await page.locator(".beat").nth(2).click();
