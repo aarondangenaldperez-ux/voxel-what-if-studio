@@ -4,7 +4,7 @@ const ALLOWED_MODEL_ID = "city-traffic-kinematics-v1";
 
 function cleanText(value, label, maxLength = MAX_TEXT) {
   if (typeof value !== "string") throw new TypeError(label + " must be text.");
-  const cleaned = value.replace(/[\\u0000-\\u001f\\u007f]/g, " ").replace(/\\s+/g, " ").trim();
+    const cleaned = value.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim();
   if (!cleaned || cleaned.length > maxLength) throw new RangeError(label + " must contain 1 to " + maxLength + " characters.");
   return cleaned;
 }
