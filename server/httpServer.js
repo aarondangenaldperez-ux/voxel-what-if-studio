@@ -61,7 +61,10 @@ export function createAppServer({ env = process.env, interpret = interpretScenar
       return;
     }
 
-    const client = String(request.headers["x-forwarded-for"] || request.socket.remoteAddress || "unknown").split(",")[0].trim();
+    // Only trust forwarded client IPs when deployment explicitly sits behind a
+    // proxy that overwrites this header. Otherwise it is caller-controlled.
+    const forwardedClient = env.TRUST_PROXY === "true" ? request.headers["x-forwarded-for"] : null;
+    const client = String(forwardedClient || request.socket.remoteAddress || "unknown").split(",")[0].trim();
     const current = now();
     const recent = (rateLimit.get(client) || []).filter((timestamp) => current - timestamp < WINDOW_MS);
     if (recent.length >= MAX_REQUESTS_PER_WINDOW) {
