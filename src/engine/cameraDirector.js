@@ -34,12 +34,12 @@ const RUBBER_SHOTS = {
   },
   event: {
     // Keep the disappearing tires and the affected vehicle inside the portrait frame.
-    position: [2.8, 9, 21], target: [1.55, 0.9, 8.1],
+    position: [2.8, 9, 18.76], target: [1.55, 0.9, 5.86],
     motion: { position: [0.55, 0.25, -0.55], target: [0, 0, 0] }
   },
   detail: {
     // A deliberate three-quarter view of the vehicle, not the nearby blank building wall.
-    position: [0, 5.1, 14.2], target: [1.55, 0.85, 8.1],
+    position: [0, 5.1, 12.3], target: [1.55, 0.85, 5.86],
     motion: { position: [-0.2, 0.3, -0.75], target: [-0.12, 0, -0.12] }
   },
   aftermath: {
