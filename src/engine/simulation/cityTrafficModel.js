@@ -4,7 +4,8 @@ const DEFAULTS = Object.freeze({
   brakingDeceleration: 0.18,
   recoveryAcceleration: 0.12,
   bodyDrop: 0.22,
-  transitionSeconds: 0.45
+  transitionSeconds: 0.45,
+  wheelRadius: 0.34
 });
 
 function finiteNumber(value, label, min = -Infinity, max = Infinity) {
@@ -21,7 +22,14 @@ function smoothStep(value) {
 }
 
 function motionAt(time, config) {
-  const { baselineSpeed: speed, brakingDeceleration: brake, recoveryAcceleration: recovery, eventStartSeconds: start, eventEndSeconds: end } = config;
+  const {
+    baselineSpeed: speed,
+    brakingDeceleration: brake,
+    recoveryAcceleration: recovery,
+    eventStartSeconds: start,
+    eventEndSeconds: end,
+    recoveryStartSeconds
+  } = config;
   if (!config.enabled || time < start) {
     return { distance: speed * time, speed, state: "cruising", wheelsPresent: true, bodyDrop: 0 };
   }
@@ -39,12 +47,12 @@ function motionAt(time, config) {
     distance = speed * start + brakingDistance;
     currentSpeed = Math.max(0, speed - brake * (time - start));
     state = "braking";
-  } else if (time < end) {
+  } else if (time < recoveryStartSeconds) {
     distance = speed * start + stopDistance;
     currentSpeed = 0;
     state = "stopped";
   } else {
-    const recoveryElapsed = time - end;
+    const recoveryElapsed = time - recoveryStartSeconds;
     const recoveryDuration = speed / recovery;
     const recoveryElapsedCapped = Math.min(recoveryElapsed, recoveryDuration);
     const recoveryDistance = 0.5 * recovery * recoveryElapsedCapped * recoveryElapsedCapped;
@@ -103,6 +111,7 @@ export function createCityTrafficSimulation({
   durationSeconds = 56,
   eventStartSeconds = 8,
   eventDurationSeconds = 5,
+  recoveryStartSeconds,
   enabled = true,
   baselineSpeed = DEFAULTS.baselineSpeed,
   brakingDeceleration = DEFAULTS.brakingDeceleration,
@@ -117,6 +126,8 @@ export function createCityTrafficSimulation({
   if (eventStart + eventDuration > duration) {
     throw new RangeError("The event window must fit inside the simulation duration.");
   }
+  const eventEnd = eventStart + eventDuration;
+  const recoveryStart = finiteNumber(recoveryStartSeconds ?? eventEnd, "recoveryStartSeconds", eventEnd, duration);
 
   const config = Object.freeze({
     enabled: Boolean(enabled),
@@ -125,8 +136,10 @@ export function createCityTrafficSimulation({
     recoveryAcceleration: finiteNumber(recoveryAcceleration, "recoveryAcceleration", 0.001, 10),
     bodyDrop: finiteNumber(bodyDrop, "bodyDrop", 0, 5),
     transitionSeconds: finiteNumber(transitionSeconds, "transitionSeconds", 0.01, 5),
+    wheelRadius: finiteNumber(DEFAULTS.wheelRadius, "wheelRadius", 0.05, 2),
     eventStartSeconds: eventStart,
-    eventEndSeconds: eventStart + eventDuration
+    eventEndSeconds: eventEnd,
+    recoveryStartSeconds: recoveryStart
   });
 
   function sampleAt(seconds) {
@@ -147,6 +160,7 @@ export function createCityTrafficSimulation({
         travelDistanceShortfall: Math.max(0, baselineDistance - motion.distance),
         state: motion.state,
         wheelsPresent: motion.wheelsPresent,
+        wheelRotation: motion.distance / config.wheelRadius,
         bodyDrop: motion.bodyDrop
       };
     });
@@ -160,7 +174,7 @@ export function createCityTrafficSimulation({
 
   const finalState = sampleAt(duration);
   const stopDurationPerVehicle = config.enabled
-    ? Math.max(0, eventDuration - Math.min(eventDuration, config.baselineSpeed / config.brakingDeceleration))
+    ? Math.max(0, config.recoveryStartSeconds - (config.eventStartSeconds + config.baselineSpeed / config.brakingDeceleration))
     : 0;
   const baselineMeanDistance = config.baselineSpeed * duration;
   const scenarioMeanDistance = finalState.vehicles.reduce((sum, vehicle) => sum + vehicle.travelDistance, 0) / entities.length;
@@ -169,6 +183,7 @@ export function createCityTrafficSimulation({
     durationSeconds: duration,
     eventStartSeconds: config.eventStartSeconds,
     eventDurationSeconds: config.enabled ? eventDuration : 0,
+    recoveryStartSeconds: config.recoveryStartSeconds,
     vehicleCount: entities.length,
     affectedVehicleCount: config.enabled ? entities.length : 0,
     baselineMeanTravelDistance: baselineMeanDistance,
@@ -179,7 +194,7 @@ export function createCityTrafficSimulation({
     assumptions: Object.freeze([
       "Each vehicle starts at a constant authored scene speed of " + config.baselineSpeed + " scene units per second.",
       "The tire-loss event triggers a constant deceleration of " + config.brakingDeceleration + " scene units per second squared.",
-      "Vehicles remain stationary after deceleration until the event ends, then recover at " + config.recoveryAcceleration + " scene units per second squared.",
+      "Tires return when the event ends; vehicles remain stopped until the recovery beat at " + config.recoveryStartSeconds + " seconds, then accelerate at " + config.recoveryAcceleration + " scene units per second squared.",
       "All vehicles share the same simplified response; collision avoidance, road capacity and driver variation are not modeled."
     ]),
     limitations: "This is a deterministic kinematic scenario model, not a calibrated traffic forecast or a tire/road contact physics simulation."
@@ -190,6 +205,7 @@ export function createCityTrafficSimulation({
     durationSeconds: duration,
     eventStartSeconds: config.eventStartSeconds,
     eventEndSeconds: config.eventEndSeconds,
+    recoveryStartSeconds: config.recoveryStartSeconds,
     entities,
     sampleAt,
     summary
