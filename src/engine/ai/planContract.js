@@ -75,9 +75,10 @@ export function validateAIInterpretation(raw, originalPrompt) {
     // The user must explicitly state the supported duration. The model cannot
     // silently fill missing scenario parameters or accept AI-altered timings.
     const mentionsTireLoss = /\b(?:rubber|tires?|tyres?)\b/i.test(prompt);
+    const describesDisappearance = /\b(?:disappear(?:ed|s|ing)?|vanish(?:ed|es|ing)?|loss|lost|removed)\b/i.test(prompt);
     const statesFiveSeconds = /\b(?:5|five)\s*-?\s*(?:seconds?|secs?|s)\b/i.test(prompt);
-    if (!mentionsTireLoss || !statesFiveSeconds) {
-      throw new RangeError("The prompt must explicitly describe tire/rubber loss for five seconds.");
+    if (!mentionsTireLoss || !describesDisappearance || !statesFiveSeconds) {
+      throw new RangeError("The prompt must explicitly describe tires/rubber disappearing for five seconds.");
     }
     if (startSeconds !== 8 || durationSeconds !== 5 || recoveryStartSeconds !== 33) {
       throw new RangeError("The registered model requires event 8–13 seconds and traffic recovery at 33 seconds.");
@@ -89,8 +90,14 @@ export function validateAIInterpretation(raw, originalPrompt) {
 
   const requiredSystems = Array.isArray(raw.requiredSystems) ? raw.requiredSystems : [];
   if (requiredSystems.length > 8) throw new RangeError("The AI plan requires too many simulation systems.");
+  if (requiredSystems.length === 0) {
+    throw new TypeError("The AI plan must identify at least one required simulation system.");
+  }
+  const seenSystems = new Set();
   const safeRequiredSystems = requiredSystems.map((system, index) => {
     if (!ALLOWED_REQUIRED_SYSTEMS.has(system?.id)) throw new TypeError("Unknown required simulation system at index " + index + ".");
+    if (seenSystems.has(system.id)) throw new TypeError("Required simulation system IDs must be unique.");
+    seenSystems.add(system.id);
     return Object.freeze({
       id: system.id,
       available: system.id === "traffic-kinematics",
