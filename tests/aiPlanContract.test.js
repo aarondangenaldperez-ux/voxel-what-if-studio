@@ -15,7 +15,7 @@ const supportedPlan = {
   requiredSystems: [{ id: "traffic-kinematics", reason: "The registered model covers the authored vehicle response." }],
   missingInformation: [],
   conflicts: [],
-  facts: ["The user specified a five-second duration."],
+  facts: [{ statement: "The user described a five-second tire-loss event.", evidence: "rubber disappeared for five seconds" }],
   assumptions: ["The scene uses the existing three-vehicle intersection."],
   limitations: ["This is not a calibrated tire-road dynamics model."]
 };
@@ -76,4 +76,16 @@ test("AI plans must identify at least one required simulation system", () => {
     ...supportedPlan,
     requiredSystems: []
   }, "What if rubber disappeared for five seconds?"), /at least one required simulation system/);
+});
+
+test("AI-reported facts must be grounded in exact prompt evidence", () => {
+  assert.throws(() => validateAIInterpretation({
+    ...supportedPlan,
+    facts: [{ statement: "The vehicles were traveling at 60 km/h.", evidence: "60 km/h" }]
+  }, "What if rubber disappeared for five seconds?"), /exact quote/);
+  const result = validateAIInterpretation({
+    ...supportedPlan,
+    facts: [{ statement: "The event lasts five seconds.", evidence: "five seconds" }]
+  }, "What if rubber disappeared for five seconds?");
+  assert.equal(result.facts[0].evidence, "five seconds");
 });
