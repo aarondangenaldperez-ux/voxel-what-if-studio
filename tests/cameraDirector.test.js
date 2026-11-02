@@ -39,6 +39,20 @@ test("long rubber beats contain authored camera movement instead of static holds
   assert.ok(movement > 0.15, "the camera should move during a long beat");
 });
 
+test("camera motion is continuous across adjacent storyboard beat boundaries", () => {
+  const scenario = buildScenarioPlan("What if all rubber disappeared for 5 seconds?");
+  const before = getCinematicCameraPose({
+    beats: scenario.beats, elapsedSeconds: 19.999, scenarioId: scenario.id
+  });
+  const after = getCinematicCameraPose({
+    beats: scenario.beats, elapsedSeconds: 20, scenarioId: scenario.id
+  });
+  assert.ok(distance(before.position, after.position) < 0.02,
+    "camera position must not jump when the next shot begins");
+  assert.ok(distance(before.target, after.target) < 0.02,
+    "camera aim must not jump when the next shot begins");
+});
+
 test("rubber story has a wide traffic-jam overview and a resolved closing shot", () => {
   const scenario = buildScenarioPlan("What if all rubber disappeared for 5 seconds?");
   const overview = getCinematicCameraPose({
