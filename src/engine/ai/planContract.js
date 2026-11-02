@@ -97,6 +97,19 @@ export function validateAIInterpretation(raw, originalPrompt) {
       reason: cleanText(system.reason, "required system reason", 220)
     });
   });
+  const missingInformation = textList(raw.missingInformation || [], "missingInformation", 8);
+  const conflicts = textList(raw.conflicts || [], "conflicts", 8);
+  if (classification === "supported") {
+    if (!safeRequiredSystems.some((system) => system.id === "traffic-kinematics" && system.available)) {
+      throw new TypeError("A supported traffic plan must declare the registered traffic-kinematics system.");
+    }
+    if (safeRequiredSystems.some((system) => !system.available)) {
+      throw new TypeError("A supported plan cannot require unavailable simulation systems.");
+    }
+    if (missingInformation.length || conflicts.length) {
+      throw new TypeError("A plan with missing information or conflicting assumptions cannot be executed.");
+    }
+  }
 
   return Object.freeze({
     schemaVersion: 1,
@@ -110,8 +123,8 @@ export function validateAIInterpretation(raw, originalPrompt) {
     variables: Object.freeze(safeVariables),
     relationships: Object.freeze(textList(raw.relationships || [], "relationships", 12)),
     requiredSystems: Object.freeze(safeRequiredSystems),
-    missingInformation: Object.freeze(textList(raw.missingInformation || [], "missingInformation", 8)),
-    conflicts: Object.freeze(textList(raw.conflicts || [], "conflicts", 8)),
+    missingInformation: Object.freeze(missingInformation),
+    conflicts: Object.freeze(conflicts),
     facts: Object.freeze(textList(raw.facts || [], "facts", 8)),
     assumptions: Object.freeze(textList(raw.assumptions || [], "assumptions", 10)),
     limitations: Object.freeze(textList(raw.limitations || [], "limitations", 10))
