@@ -169,7 +169,6 @@ test("production app renders WebGL, switches environments, and exports real file
         view?.dataset.simulatedVehicleWheels === "true";
     });
     await page.locator(".play-button").click();
-    await page.locator(".play-button").click();
     await page.waitForFunction(
       () => Number(document.querySelector(".world-view")?.dataset.timelineSeconds) >= 14.25,
       null,
