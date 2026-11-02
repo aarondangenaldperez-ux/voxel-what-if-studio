@@ -145,3 +145,11 @@ The application is a static React/Vite/Three.js client deployed to GitHub Pages.
 - The quantitative traffic model uses Three.js scene units and explicit illustrative acceleration parameters. It is deterministic and testable, but not a calibrated road-traffic, tire-friction, collision, or real-world speed model.
 - Gravity, electricity, factory, and ocean scene effects have not yet been upgraded to quantitative simulation models.
 - The existing full-app video-export Chromium test remains a separate release check; this engine milestone does not change or waive its acceptance criteria.
+
+
+## 2026-11-02 — Tightened scenario and AI execution gates
+
+- The tire-loss map now requires both a tire/rubber subject, a disappearance/loss action, and an explicit five-second duration. A prompt about changing tires every five seconds or an unspecified duration no longer triggers the quantitative model.
+- The AI plan validator applies the same prompt requirements and exact 8–13 second event / 33 second recovery contract.
+- AI plans must name at least one recognized simulation system. Supported plans must identify the registered traffic-kinematics model, and are blocked if they require unavailable systems, omit necessary information, or report conflicting assumptions.
+- The visualization uses model-computed wheel rotation from travel distance and wheel radius; tire restoration at 13 seconds is distinct from traffic restart at 33 seconds.
