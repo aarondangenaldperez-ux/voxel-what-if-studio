@@ -199,3 +199,14 @@ The current release is a visual prototype. It does **not** yet generate complete
 - The underwater water-surface mesh becomes hidden during the ocean-loss/hold beats; fish descend toward the seabed and the submarine drops lower. The surface and actors return during the ocean-return beat.
 - Added scenario plan tests, environment state-transition tests, and Chromium UI checks for the mapped event and its selected beat.
 - This is a stylized visual consequence, not a fluid simulation or a scientific model of global sea-level change.
+
+
+## Phase 6 — Deterministic simulation core and AI interpretation boundary
+
+- Added the registered `city-traffic-kinematics-v1` model with explicit entity inputs, constant-deceleration braking, stopped hold, acceleration recovery, deterministic time sampling, baseline comparison, and bounded study sampling.
+- Stable vehicle IDs connect simulation entities to the actual city car groups in Three.js. In the rubber scenario, sampled model state drives car position, body drop, and wheel visibility; renderer-only actor animation is bypassed for those vehicle transforms.
+- Added a results panel for modeled vehicle count, event duration, stopped vehicle-seconds, mean travel-distance shortfall, and baseline comparison, with assumptions and limits exposed in the UI.
+- Added an optional server-side AI interpretation API using a configured OpenAI-compatible JSON chat endpoint. It validates model output against a strict schema and model allow-list; arbitrary code and arbitrary model IDs are rejected.
+- Added tests for plan validation, provider configuration, server behavior, entity bounds, event-window validation, deterministic sampling, and baseline comparison.
+- The traffic model uses authored Three.js scene units and is illustrative. It is not a calibrated road-traffic, tire-friction, collision, or real-world speed model.
+- The AI service runs locally via `npm run dev:api`; a production API host and server-side provider configuration are still required because GitHub Pages does not host the Node API.
