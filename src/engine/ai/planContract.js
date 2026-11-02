@@ -74,8 +74,8 @@ export function validateAIInterpretation(raw, originalPrompt) {
     const recoveryStartSeconds = Number(raw.event.recoveryStartSeconds);
     // The user must explicitly state the supported duration. The model cannot
     // silently fill missing scenario parameters or accept AI-altered timings.
-    const mentionsTireLoss = /\\b(?:rubber|tires?|tyres?)\\b/i.test(prompt);
-    const statesFiveSeconds = /\\b(?:5|five)\\s*-?\\s*(?:seconds?|secs?|s)\\b/i.test(prompt);
+    const mentionsTireLoss = /\b(?:rubber|tires?|tyres?)\b/i.test(prompt);
+    const statesFiveSeconds = /\b(?:5|five)\s*-?\s*(?:seconds?|secs?|s)\b/i.test(prompt);
     if (!mentionsTireLoss || !statesFiveSeconds) {
       throw new RangeError("The prompt must explicitly describe tire/rubber loss for five seconds.");
     }
