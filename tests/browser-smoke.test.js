@@ -184,6 +184,17 @@ test("production app renders WebGL, switches environments, and exports real file
     assert.ok(Math.abs(detailTargetX - 1.55) < 0.35 && Math.abs(detailTargetZ - 5.86) < 0.35,
       "the detail camera should point at the affected vehicle, not a building facade");
 
+    await page.locator(".beat").nth(5).click();
+    await page.locator(".play-button").click();
+    await page.waitForFunction(() => {
+      const view = document.querySelector(".world-view");
+      return Number(view?.dataset.simulationTime) >= 33.5 &&
+        view?.dataset.simulatedVehicleState === "recovering" &&
+        Number(view?.dataset.simulatedVehicleSpeed) > 0 &&
+        view?.dataset.simulatedVehicleWheels === "true";
+    }, null, { timeout: 5000 });
+    await page.locator(".play-button").click();
+
     const downloadPromise = page.waitForEvent("download");
     await page.locator(".export-button").click();
     const download = await downloadPromise;
