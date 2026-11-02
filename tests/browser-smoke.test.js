@@ -283,7 +283,6 @@ test("production app renders WebGL, switches environments, and exports real file
       exportMetadata.type.startsWith("video/mp4") || exportMetadata.type.startsWith("video/webm"),
       "the full app export should use a real MP4 or WebM media type"
     );
-      "the full app export should use a real MP4 or WebM media type");
 
     assert.deepEqual(pageErrors, [], "browser should not report uncaught page errors");
   } finally {
