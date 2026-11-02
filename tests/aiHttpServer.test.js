@@ -41,7 +41,9 @@ test("AI endpoint returns validated plans and enforces configured origin policy"
   const validPlan = {
     schemaVersion: 1, classification: "unsupported", title: "Moon vanished",
     summary: "No registered model can calculate this event.", simulationModelId: null, event: null,
-    entities: [], variables: [], relationships: [], facts: [],
+    entities: [], variables: [], relationships: [],
+    requiredSystems: [{ id: "orbital-mechanics", reason: "An orbital dynamics model is needed for trajectory consequences." }],
+    missingInformation: [], conflicts: [], facts: [],
     assumptions: ["An orbital dynamics model is required."], limitations: ["Not currently supported."]
   };
   await withServer({
