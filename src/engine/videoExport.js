@@ -364,7 +364,19 @@ export async function recordCanvasVideo({
             onTime(elapsed, getBeatAtTime(beats, elapsed));
             onProgress(elapsed / durationSeconds);
             if (elapsed >= durationSeconds) {
-              recorder.stop();
+              // Give the final canvas frame one browser paint/capture turn before
+              // stopping MediaRecorder. Immediate stop can drop a just-requested
+              // manual frame or the last automatic-rate capture tick, truncating
+              // the encoded container even though the simulation clock reached 56s.
+              frameId = requestAnimationFrame(() => {
+                frameId = 0;
+                if (settled || recorder.state !== "recording") return;
+                try {
+                  recorder.stop();
+                } catch (error) {
+                  fail(error);
+                }
+              });
             } else {
               frameId = requestAnimationFrame(renderFrame);
             }
