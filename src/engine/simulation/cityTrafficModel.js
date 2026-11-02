@@ -1,4 +1,5 @@
 const MODEL_ID = "city-traffic-kinematics-v1";
+const MAX_SAMPLE_ENTITY_RECORDS = 1_000_000;
 const DEFAULTS = Object.freeze({
   baselineSpeed: 0.28,
   brakingDeceleration: 0.18,
@@ -219,6 +220,10 @@ export function runCityTrafficStudy(options = {}) {
   const sampleCount = sampleIntervals + 1;
   if (sampleCount > 72000) {
     throw new RangeError("The requested study exceeds the 72,000-sample resource limit.");
+  }
+  const entitySampleCount = sampleCount * simulation.entities.length;
+  if (entitySampleCount > MAX_SAMPLE_ENTITY_RECORDS) {
+    throw new RangeError("The requested study exceeds the one-million entity-sample resource limit.");
   }
   const samples = [];
   for (let index = 0; index <= sampleIntervals; index += 1) {
