@@ -106,6 +106,18 @@ export function validateAIInterpretation(raw, originalPrompt) {
   });
   const missingInformation = textList(raw.missingInformation || [], "missingInformation", 8);
   const conflicts = textList(raw.conflicts || [], "conflicts", 8);
+  const rawFacts = Array.isArray(raw.facts) ? raw.facts : [];
+  if (rawFacts.length > 8) throw new RangeError("The AI plan contains too many facts.");
+  const normalizedPrompt = prompt.toLowerCase().replace(/\\s+/g, " ").trim();
+  const facts = rawFacts.map((fact, index) => {
+    const statement = cleanText(fact?.statement, "fact statement " + index, 220);
+    const evidence = cleanText(fact?.evidence, "fact evidence " + index, 160);
+    const normalizedEvidence = evidence.toLowerCase().replace(/\\s+/g, " ").trim();
+    if (!normalizedPrompt.includes(normalizedEvidence)) {
+      throw new TypeError("Fact evidence must be an exact quote from the user's prompt.");
+    }
+    return Object.freeze({ statement, evidence });
+  });
   if (classification === "supported") {
     if (!safeRequiredSystems.some((system) => system.id === "traffic-kinematics" && system.available)) {
       throw new TypeError("A supported traffic plan must declare the registered traffic-kinematics system.");
@@ -132,7 +144,7 @@ export function validateAIInterpretation(raw, originalPrompt) {
     requiredSystems: Object.freeze(safeRequiredSystems),
     missingInformation: Object.freeze(missingInformation),
     conflicts: Object.freeze(conflicts),
-    facts: Object.freeze(textList(raw.facts || [], "facts", 8)),
+    facts: Object.freeze(facts),
     assumptions: Object.freeze(textList(raw.assumptions || [], "assumptions", 10)),
     limitations: Object.freeze(textList(raw.limitations || [], "limitations", 10))
   });
