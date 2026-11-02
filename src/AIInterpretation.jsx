@@ -16,6 +16,9 @@ export default function AIInterpretation({ plan, error, busy }) {
       {plan.entities.length > 0 && <div className="ai-plan-section"><strong>Identified entities</strong><span>{plan.entities.map((entity) => entity.label).join(" · ")}</span></div>}
       {plan.relationships.length > 0 && <div className="ai-plan-section"><strong>Cause-and-effect relationships</strong><ul>{plan.relationships.map((item) => <li key={item}>{item}</li>)}</ul></div>}
       {plan.variables.length > 0 && <div className="ai-plan-section"><strong>Variables</strong><span>{plan.variables.map((item) => item.name + ": " + item.value + " " + item.unit).join(" · ")}</span></div>}
+      {plan.requiredSystems.length > 0 && <div className="ai-plan-section"><strong>Required simulation systems</strong><ul>{plan.requiredSystems.map((item) => <li key={item.id}>{item.id} — {item.available ? "registered and available" : "not implemented yet"}: {item.reason}</li>)}</ul></div>}
+      {plan.missingInformation.length > 0 && <div className="ai-plan-section"><strong>Missing information</strong><ul>{plan.missingInformation.map((item) => <li key={item}>{item}</li>)}</ul></div>}
+      {plan.conflicts.length > 0 && <div className="ai-plan-section ai-plan-limitations"><strong>Conflicting assumptions</strong><ul>{plan.conflicts.map((item) => <li key={item}>{item}</li>)}</ul></div>}
       {plan.assumptions.length > 0 && <div className="ai-plan-section"><strong>Assumptions</strong><ul>{plan.assumptions.map((item) => <li key={item}>{item}</li>)}</ul></div>}
       {plan.facts.length > 0 && <div className="ai-plan-section"><strong>Context identified in the prompt</strong><ul>{plan.facts.map((item) => <li key={item}>{item}</li>)}</ul></div>}
       {plan.limitations.length > 0 && <div className="ai-plan-section ai-plan-limitations"><strong>Limitations</strong><ul>{plan.limitations.map((item) => <li key={item}>{item}</li>)}</ul></div>}
