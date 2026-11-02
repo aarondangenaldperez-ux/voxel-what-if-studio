@@ -320,7 +320,8 @@ test("production app renders WebGL, switches environments, and exports real file
     assert.equal(mediaQuality.width, 1080, "export should decode at the requested width");
     assert.equal(mediaQuality.height, 1920, "export should decode at the requested portrait height");
     assert.ok(mediaQuality.duration >= 54 && mediaQuality.duration <= 57,
-      "export should contain the complete 56-second storyboard");
+      "export should contain the complete 56-second storyboard (decoded duration: " +
+      mediaQuality.duration.toFixed(3) + "s)");
     assert.ok(mediaQuality.differences.every((ratio) => ratio > 0.002),
       "sampled story sections should contain visible frame changes, not long frozen shots: " +
       mediaQuality.differences.map((value) => value.toFixed(4)).join(", "));
