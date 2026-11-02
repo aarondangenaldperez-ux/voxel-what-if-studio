@@ -199,12 +199,13 @@ export function createCityTrafficSimulation({
 export function runCityTrafficStudy(options = {}) {
   const simulation = createCityTrafficSimulation(options);
   const sampleStepSeconds = finiteNumber(options.sampleStepSeconds ?? 0.25, "sampleStepSeconds", 1 / 120, 1);
-  const sampleCount = Math.ceil(simulation.durationSeconds / sampleStepSeconds) + 1;
+  const sampleIntervals = Math.ceil(simulation.durationSeconds / sampleStepSeconds);
+  const sampleCount = sampleIntervals + 1;
   if (sampleCount > 72000) {
     throw new RangeError("The requested study exceeds the 72,000-sample resource limit.");
   }
   const samples = [];
-  for (let index = 0; index <= sampleCount; index += 1) {
+  for (let index = 0; index <= sampleIntervals; index += 1) {
     const time = Math.min(simulation.durationSeconds, index * sampleStepSeconds);
     samples.push(simulation.sampleAt(time));
   }
