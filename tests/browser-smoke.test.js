@@ -51,6 +51,34 @@ test("production app renders WebGL, switches environments, and exports real file
     assert.equal(initialCanvas.hasWebGL, true, "a WebGL context should be created");
     const mobileRenderScale = await page.locator('.world-view').getAttribute('data-render-pixel-ratio');
     assert.ok(Number(mobileRenderScale) <= 1.25, "mobile preview should cap GPU pixel ratio to protect device performance");
+
+    // Exercise narrow and common phone widths, not just the default mobile viewport.
+    for (const width of [320, 360, 390, 430]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.waitForFunction(() => {
+        const canvasElement = document.querySelector(".world-view canvas");
+        return canvasElement && canvasElement.width > 0 && canvasElement.height > 0;
+      });
+      const mobileLayout = await page.evaluate(() => {
+        const viewport = document.querySelector(".viewport");
+        const canvasElement = document.querySelector(".world-view canvas");
+        return {
+          viewportWidth: viewport?.getBoundingClientRect().width ?? 0,
+          documentWidth: document.documentElement.scrollWidth,
+          windowWidth: window.innerWidth,
+          canvasWidth: canvasElement?.getBoundingClientRect().width ?? 0,
+          canvasHeight: canvasElement?.getBoundingClientRect().height ?? 0
+        };
+      });
+      assert.ok(
+        mobileLayout.documentWidth <= mobileLayout.windowWidth,
+        `page should not overflow horizontally at ${width}px (document: ${mobileLayout.documentWidth}px)`
+      );
+      assert.ok(mobileLayout.viewportWidth <= width, `3D viewport should fit at ${width}px`);
+      assert.ok(mobileLayout.canvasWidth > 0 && mobileLayout.canvasHeight > 0,
+        `3D canvas should remain visible at ${width}px`);
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
     const hostToggle = page.locator('.camera-mode-button[data-mode="presenter"]');
     await page.waitForFunction(() => document.querySelector('.world-view')?.dataset.presenterVisible === 'true');
     await hostToggle.click();
