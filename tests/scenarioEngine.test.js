@@ -111,3 +111,10 @@ test('rubber simulation requires the supported five-second duration to be explic
   assert.equal(longEvent.supported, false);
   assert.equal(unspecified.supported, false);
 });
+
+test('rubber simulation requires the supported five-second duration to be explicit', () => {
+  const longEvent = buildScenarioPlan('What if rubber disappeared for 10 seconds?');
+  const unspecified = buildScenarioPlan('What if all tires disappeared?');
+  assert.equal(longEvent.supported, false);
+  assert.equal(unspecified.supported, false);
+});
