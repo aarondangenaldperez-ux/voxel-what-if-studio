@@ -171,3 +171,8 @@ The full-app Chromium test measured an encoded 56-second scene at 52.642 seconds
 ### Verification boundary
 
 The exact full-app encoded duration and 1080×1920 dimensions must pass in Chromium. This does not establish 24fps performance or image quality on Android/iOS devices; real-device QA remains outstanding.
+
+
+## 2026-11-02 — Balanced 1080p output render scale
+
+The full-app export test reached 53.851 seconds with a fixed-rate 24fps canvas track, improving over the earlier manual-capture result but still below the 56-second acceptance window on software-rendered Chromium. To reduce WebGL pixel cost without changing the final portrait aspect ratio or encoded file dimensions, the balanced export preset now renders the scene at 900×1600 and scales it into the 1080×1920 composition canvas using high-quality canvas image smoothing. The encoded dimensions remain 1080×1920. This is a deliberate render-resolution trade-off, not native 1080p scene detail, and must be assessed on real target devices.
